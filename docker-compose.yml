@@ -4,14 +4,13 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: inbody-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: inbody
       POSTGRES_PASSWORD: inbody_secret
       POSTGRES_DB: inbody_challenge
-    ports:
-      - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - /volume1/docker/inbody/postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U inbody"]
       interval: 10s
@@ -23,6 +22,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: inbody-backend
+    restart: unless-stopped
     environment:
       DB_TYPE: postgres
       DATABASE_HOST: postgres
@@ -32,11 +32,11 @@ services:
       DATABASE_NAME: inbody_challenge
       JWT_SECRET: your-secret-key-change-in-production
       UPLOAD_DIR: /uploads
-      FRONTEND_URL: http://localhost:3000,http://127.0.0.1:3000
+      FRONTEND_URL: http://inbody.your-domain.com
     ports:
       - "3001:3001"
     volumes:
-      - upload_data:/uploads
+      - /volume1/docker/inbody/uploads:/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -46,13 +46,10 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: inbody-frontend
+    restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_URL: http://backend:3001/api
     ports:
       - "3000:3000"
     depends_on:
       - backend
-
-volumes:
-  postgres_data:
-  upload_data:
