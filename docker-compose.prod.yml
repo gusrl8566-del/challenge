@@ -57,7 +57,7 @@ services:
     env_file:
       - .env
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://backend:3001/api}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.megaworld.store}
       TZ: ${TZ:-Asia/Seoul}
     ports:
       - "3000:3000"
@@ -67,4 +67,3 @@ services:
 volumes:
   postgres_data:
   upload_data:
-

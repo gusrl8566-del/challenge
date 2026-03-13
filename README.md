@@ -42,7 +42,7 @@ docker-compose logs -f
 
 Services will be available at:
 - Frontend: http://localhost:3000
-- Backend API: http://localhost:3001/api
+- Backend API: https://api.megaworld.store
 
 ### Development Mode
 

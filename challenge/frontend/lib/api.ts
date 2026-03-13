@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Participant, InbodyRecord, RankingEntry, Score } from '@/types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.megaworld.store';
 
 const api = axios.create({
   baseURL: API_URL,

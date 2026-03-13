@@ -8,7 +8,7 @@ docker-compose up -d
 ```
 
 - Frontend: http://localhost:3000
-- Backend API: http://localhost:3001/api
+- Backend API: https://api.megaworld.store
 
 ## Auth
 

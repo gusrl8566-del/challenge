@@ -17,7 +17,7 @@ function resolveApiUrl(): string {
     return '/api';
   }
 
-  return envUrl || 'http://127.0.0.1:3001/api';
+  return envUrl || 'https://api.megaworld.store';
 }
 
 const API_URL = resolveApiUrl();
@@ -34,9 +34,7 @@ function getDirectBackendApiUrl(): string | null {
     return null;
   }
 
-  const protocol = window.location.protocol;
-  const host = window.location.hostname;
-  return `${protocol}//${host}:3001/api`;
+  return 'https://api.megaworld.store';
 }
 
 api.interceptors.request.use((config) => {
