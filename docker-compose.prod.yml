@@ -1,7 +1,6 @@
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: inbody-postgres
     restart: unless-stopped
     env_file:
       - .env
@@ -9,9 +8,8 @@ services:
       POSTGRES_USER: ${DATABASE_USER}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
       POSTGRES_DB: ${DATABASE_NAME}
-      TZ: ${TZ:-Asia/Seoul}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - /volume1/docker/inbody/postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER}"]
       interval: 10s
