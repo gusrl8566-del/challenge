@@ -1,19 +1,21 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15-alpine
     container_name: inbody-postgres
-    environment:
-      POSTGRES_USER: inbody
-      POSTGRES_PASSWORD: inbody_secret
-      POSTGRES_DB: inbody_challenge
+    restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "5433:5432"
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+      TZ: ${TZ:-Asia/Seoul}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U inbody"]
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -23,18 +25,27 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: inbody-backend
+    restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      DB_TYPE: postgres
-      DATABASE_HOST: postgres
-      DATABASE_PORT: 5432
-      DATABASE_USER: inbody
-      DATABASE_PASSWORD: inbody_secret
-      DATABASE_NAME: inbody_challenge
-      JWT_SECRET: your-secret-key-change-in-production
+      DB_TYPE: ${DB_TYPE:-postgres}
+      DATABASE_HOST: ${DATABASE_HOST:-postgres}
+      DATABASE_PORT: ${DATABASE_PORT:-5432}
+      DATABASE_USER: ${DATABASE_USER}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      DATABASE_NAME: ${DATABASE_NAME}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      ADMIN_SUPER_CODE: ${ADMIN_SUPER_CODE}
+      PORT: 3001
       UPLOAD_DIR: /uploads
-      FRONTEND_URL: http://localhost:3000,http://127.0.0.1:3000
-    ports:
-      - "3001:3001"
+      FRONTEND_URL: ${FRONTEND_URL}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_OCR_MODEL: ${OPENAI_OCR_MODEL:-gpt-4.1}
+      TZ: ${TZ:-Asia/Seoul}
+    expose:
+      - "3001"
     volumes:
       - upload_data:/uploads
     depends_on:
@@ -46,8 +57,12 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: inbody-frontend
+    restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      NEXT_PUBLIC_API_URL: http://backend:3001/api
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://backend:3001/api}
+      TZ: ${TZ:-Asia/Seoul}
     ports:
       - "3000:3000"
     depends_on:
@@ -56,3 +71,4 @@ services:
 volumes:
   postgres_data:
   upload_data:
+

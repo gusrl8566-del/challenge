@@ -9,7 +9,7 @@ node_modules
 *.sqlite
 
 # uploads
-uploads
+backend/uploads
 
 # backups
 backups

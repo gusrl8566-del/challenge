@@ -4,7 +4,7 @@ services:
     container_name: inbody-postgres
     restart: unless-stopped
     env_file:
-      - .env.prod
+      - .env
     environment:
       POSTGRES_USER: ${DATABASE_USER}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
@@ -25,7 +25,7 @@ services:
     container_name: inbody-backend
     restart: unless-stopped
     env_file:
-      - .env.prod
+      - .env
     environment:
       DB_TYPE: ${DB_TYPE:-postgres}
       DATABASE_HOST: ${DATABASE_HOST:-postgres}
@@ -57,7 +57,7 @@ services:
     container_name: inbody-frontend
     restart: unless-stopped
     env_file:
-      - .env.prod
+      - .env
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://backend:3001/api}
       TZ: ${TZ:-Asia/Seoul}
@@ -69,3 +69,4 @@ services:
 volumes:
   postgres_data:
   upload_data:
+
