@@ -1,0 +1,22 @@
+# dependencies
+node_modules
+
+# environment
+.env
+.env.prod
+
+# database
+*.sqlite
+
+# uploads
+uploads
+
+# backups
+backups
+
+# build files
+dist
+build
+
+# logs
+*.log
