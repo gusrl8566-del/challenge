@@ -81,3 +81,22 @@ export interface ChallengeSeason {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface ParticipantInbodyOcrResult {
+  member_id: string | null;
+  weight: number | null;
+  skeletal_muscle_mass: number | null;
+  body_fat_percent: number | null;
+}
+
+export interface ParticipantInbodyRecord {
+  id: string;
+  memberId: string;
+  name: string;
+  weight: number;
+  skeletalMuscleMass: number;
+  bodyFatPercent: number;
+  recordType: 'start' | 'end';
+  imageUrl: string;
+  createdAt: string;
+}

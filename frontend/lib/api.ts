@@ -8,6 +8,8 @@ import {
   InbodyMetrics,
   ChallengeStatus,
   ChallengeSeason,
+  ParticipantInbodyOcrResult,
+  ParticipantInbodyRecord,
 } from '@/types';
 
 function resolveApiUrl(): string {
@@ -210,6 +212,28 @@ export const challengeApi = {
 export const healthApi = {
   getDbStatus: async () => {
     const response = await api.get<{ dbConnected: boolean }>('/health/db');
+    return response.data;
+  },
+};
+
+export const inbodyRecordApi = {
+  extractFromImage: async (imageUrl: string) => {
+    const response = await api.post<ParticipantInbodyOcrResult>('/inbody-records/ocr-extract', {
+      image_url: imageUrl,
+    });
+    return response.data;
+  },
+
+  saveRecord: async (data: {
+    member_id: string;
+    name: string;
+    weight: number;
+    skeletal_muscle_mass: number;
+    body_fat_percent: number;
+    record_type: 'start' | 'end';
+    image_url: string;
+  }) => {
+    const response = await api.post<ParticipantInbodyRecord>('/inbody-records', data);
     return response.data;
   },
 };

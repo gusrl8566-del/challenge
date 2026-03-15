@@ -9,6 +9,7 @@ import { UploadsModule } from './modules/uploads/uploads.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ChallengeStatusModule } from './modules/challenge-status/challenge-status.module';
 import { HealthModule } from './modules/health/health.module';
+import { InbodyRecordsModule } from './modules/inbody-records/inbody-records.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { HealthModule } from './modules/health/health.module';
     AuthModule,
     ChallengeStatusModule,
     HealthModule,
+    InbodyRecordsModule,
   ],
 })
 export class AppModule {}

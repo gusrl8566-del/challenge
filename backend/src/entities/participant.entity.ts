@@ -4,12 +4,10 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
-  OneToMany,
   OneToOne,
   JoinColumn,
   ManyToOne,
 } from 'typeorm';
-import { InbodyRecord } from './inbody-record.entity';
 import { Score } from './score.entity';
 import { InbodyData } from './inbody-data.entity';
 import { ChallengeSeason } from './challenge-season.entity';
@@ -57,9 +55,6 @@ export class Participant {
 
   @Column({ type: 'integer', default: 0 })
   inspirationScore: number;
-
-  @OneToMany(() => InbodyRecord, (record) => record.participant)
-  inbodyRecords: InbodyRecord[];
 
   @OneToOne(() => InbodyData, (inbodyData) => inbodyData.participant)
   inbodyData: InbodyData;

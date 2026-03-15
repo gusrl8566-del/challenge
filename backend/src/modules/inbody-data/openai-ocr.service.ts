@@ -14,6 +14,13 @@ type FieldKey = 'weight' | 'skeletalMuscleMass' | 'bodyFatMass';
 type PhaseKey = 'before' | 'after';
 type SourceKind = 'original' | 'normalized';
 
+type ParticipantOcrResult = {
+  memberId: string | null;
+  weight: number | null;
+  skeletalMuscleMass: number | null;
+  bodyFatPercent: number | null;
+};
+
 type ParsedInbodyMetrics = {
   before: {
     weight: number | null;
@@ -45,6 +52,13 @@ type OcrTextResponse = {
 
 type SingleOcrTextResponse = {
   text: string;
+};
+
+type ParticipantRecordResponse = {
+  memberId: string | null;
+  weight: number | null;
+  skeletalMuscleMass: number | null;
+  bodyFatPercent: number | null;
 };
 
 type SourceImages = {
@@ -265,6 +279,49 @@ export class OpenAiOcrService {
     }
   }
 
+  async parseParticipantRecordImage(imageUrl: string): Promise<ParticipantOcrResult> {
+    const apiKey = this.configService.get<string>('OPENAI_API_KEY');
+    if (!apiKey) {
+      throw new InternalServerErrorException('OPENAI_API_KEY is not configured');
+    }
+
+    const model = this.configService.get<string>('OPENAI_OCR_MODEL_SINGLE', 'gpt-4o-mini');
+    const imageFilePath = this.resolveImageFilePath(imageUrl);
+    const fastImage = await this.prepareFastOcrImage(imageFilePath);
+
+    const fastResult = await this.requestParticipantRecord(
+      apiKey,
+      model,
+      this.toJpegDataUrl(fastImage),
+      'low',
+    );
+
+    if (!this.hasMissingParticipantField(fastResult)) {
+      return this.sanitizeParticipantResult(fastResult);
+    }
+
+    try {
+      const normalized = await this.normalizePhoto(imageFilePath);
+      const fallbackResult = await this.requestParticipantRecord(
+        apiKey,
+        model,
+        this.toJpegDataUrl(normalized),
+        'high',
+        OCR_FALLBACK_TIMEOUT_MS,
+      );
+
+      return this.sanitizeParticipantResult({
+        memberId: fallbackResult.memberId ?? fastResult.memberId,
+        weight: fallbackResult.weight ?? fastResult.weight,
+        skeletalMuscleMass:
+          fallbackResult.skeletalMuscleMass ?? fastResult.skeletalMuscleMass,
+        bodyFatPercent: fallbackResult.bodyFatPercent ?? fastResult.bodyFatPercent,
+      });
+    } catch {
+      return this.sanitizeParticipantResult(fastResult);
+    }
+  }
+
   private async requestOcrText(
     apiKey: string,
     model: string,
@@ -407,6 +464,83 @@ export class OpenAiOcrService {
     try {
       const parsed = JSON.parse(content) as SingleOcrTextResponse;
       return parsed.text;
+    } catch {
+      throw new InternalServerErrorException('Failed to parse OpenAI OCR response');
+    }
+  }
+
+  private async requestParticipantRecord(
+    apiKey: string,
+    model: string,
+    imageDataUrl: string,
+    detail: 'low' | 'high' | 'auto' = 'low',
+    timeoutMs = OCR_TIMEOUT_MS,
+  ): Promise<ParticipantRecordResponse> {
+    const response = await this.fetchOpenAi(
+      apiKey,
+      {
+        model,
+        temperature: 0,
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'participant_inbody_record',
+            strict: true,
+            schema: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['memberId', 'weight', 'skeletalMuscleMass', 'bodyFatPercent'],
+              properties: {
+                memberId: { type: ['string', 'null'] },
+                weight: { type: ['number', 'null'] },
+                skeletalMuscleMass: { type: ['number', 'null'] },
+                bodyFatPercent: { type: ['number', 'null'] },
+              },
+            },
+          },
+        },
+        messages: [
+          {
+            role: 'system',
+            content:
+              'Extract these fields from the InBody result sheet image: memberId(회원번호), weight(체중), skeletalMuscleMass(골격근량), bodyFatPercent(체지방률). Return null if uncertain.',
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text:
+                  'Return only JSON fields. bodyFatPercent must be percent value, not body fat mass.',
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: imageDataUrl,
+                  detail,
+                },
+              },
+            ],
+          },
+        ],
+      },
+      timeoutMs,
+    );
+
+    const data = (await response.json()) as OpenAiResponse;
+    if (!response.ok) {
+      throw new InternalServerErrorException(
+        data.error?.message || 'OpenAI OCR request failed',
+      );
+    }
+
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) {
+      throw new InternalServerErrorException('OpenAI OCR response is empty');
+    }
+
+    try {
+      return JSON.parse(content) as ParticipantRecordResponse;
     } catch {
       throw new InternalServerErrorException('Failed to parse OpenAI OCR response');
     }
@@ -699,6 +833,43 @@ export class OpenAiOcrService {
 
     const rounded = this.roundToSingleDecimal(value);
     return this.isInRange(rounded, field) ? rounded : null;
+  }
+
+  private sanitizeParticipantResult(result: ParticipantRecordResponse): ParticipantOcrResult {
+    const memberId = result.memberId?.trim() || null;
+
+    return {
+      memberId,
+      weight: this.sanitizeParticipantNumber(result.weight, 30, 300),
+      skeletalMuscleMass: this.sanitizeParticipantNumber(result.skeletalMuscleMass, 10, 100),
+      bodyFatPercent: this.sanitizeParticipantNumber(result.bodyFatPercent, 1, 80),
+    };
+  }
+
+  private sanitizeParticipantNumber(
+    value: number | null,
+    min: number,
+    max: number,
+  ): number | null {
+    if (value === null || !Number.isFinite(value)) {
+      return null;
+    }
+
+    const rounded = this.roundToSingleDecimal(value);
+    if (rounded < min || rounded > max) {
+      return null;
+    }
+
+    return rounded;
+  }
+
+  private hasMissingParticipantField(result: ParticipantRecordResponse): boolean {
+    return (
+      !result.memberId ||
+      result.weight === null ||
+      result.skeletalMuscleMass === null ||
+      result.bodyFatPercent === null
+    );
   }
 
   private hasMissingMetric(metrics: {

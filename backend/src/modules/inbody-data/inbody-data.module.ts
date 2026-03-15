@@ -12,6 +12,6 @@ import { ChallengeStatusModule } from '../challenge-status/challenge-status.modu
   imports: [TypeOrmModule.forFeature([InbodyData, Participant]), UploadsModule, ChallengeStatusModule],
   providers: [InbodyDataService, OpenAiOcrService],
   controllers: [InbodyDataController],
-  exports: [InbodyDataService],
+  exports: [InbodyDataService, OpenAiOcrService],
 })
 export class InbodyDataModule {}

@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const backendApiBaseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace(/\/+$/, '');
+
 const nextConfig = {
   images: {
     domains: ['localhost'],
@@ -7,7 +9,7 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'https://api.megaworld.store/:path*',
+        destination: `${backendApiBaseUrl}/:path*`,
       },
     ];
   },

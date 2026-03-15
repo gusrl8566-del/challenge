@@ -3,50 +3,45 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  ManyToOne,
-  JoinColumn,
   Unique,
 } from 'typeorm';
-import { Participant } from './participant.entity';
 
-export enum InbodyPhase {
-  BEFORE = 'before',
-  AFTER = 'after',
+export enum InbodyRecordType {
+  START = 'start',
+  END = 'end',
 }
 
 @Entity('inbody_records')
-@Unique(['participant', 'phase'])
+@Unique(['memberId', 'recordType'])
 export class InbodyRecord {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'participant_id' })
-  participantId: string;
+  @Column({ name: 'member_id', length: 50 })
+  memberId: string;
 
-  @ManyToOne(() => Participant, (participant) => participant.inbodyRecords, {
-    onDelete: 'CASCADE',
-  })
-  @JoinColumn({ name: 'participant_id' })
-  participant: Participant;
+  @Column({ length: 100 })
+  name: string;
 
   @Column({
+    name: 'record_type',
     type: 'varchar',
     length: 10,
-    enum: InbodyPhase,
+    enum: InbodyRecordType,
   })
-  phase: InbodyPhase;
+  recordType: InbodyRecordType;
 
   @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
-  weight: number;
+  weight: number | null;
 
   @Column({ name: 'skeletal_muscle_mass', type: 'decimal', precision: 5, scale: 2, nullable: true })
-  skeletalMuscleMass: number;
+  skeletalMuscleMass: number | null;
 
-  @Column({ name: 'body_fat_mass', type: 'decimal', precision: 5, scale: 2, nullable: true })
-  bodyFatMass: number;
+  @Column({ name: 'body_fat_percent', type: 'decimal', precision: 5, scale: 2, nullable: true })
+  bodyFatPercent: number | null;
 
-  @Column({ name: 'image_url', length: 500, nullable: true })
-  imageUrl: string;
+  @Column({ name: 'image_url', type: 'varchar', length: 500, nullable: true })
+  imageUrl: string | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

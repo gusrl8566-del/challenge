@@ -1,50 +1,51 @@
+import { Type } from 'class-transformer';
 import { IsString, IsNumber, IsOptional, IsEnum, Min, Max } from 'class-validator';
-import { InbodyPhase } from '../entities/inbody-record.entity';
+import { InbodyRecordType } from '../entities/inbody-record.entity';
 
 export class CreateInbodyRecordDto {
   @IsString()
-  participantId: string;
+  member_id: string;
 
-  @IsEnum(InbodyPhase)
-  phase: InbodyPhase;
+  @IsString()
+  name: string;
+
+  @IsEnum(InbodyRecordType)
+  record_type: InbodyRecordType;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   @Min(0)
+  @Max(300)
   weight?: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   @Min(0)
-  skeletalMuscleMass?: number;
+  @Max(100)
+  skeletal_muscle_mass?: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   @Min(0)
-  bodyFatMass?: number;
+  @Max(100)
+  body_fat_percent?: number;
 
   @IsOptional()
   @IsString()
-  imageUrl?: string;
+  image_url?: string;
 }
 
-export class UpdateInbodyRecordDto {
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  weight?: number;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  skeletalMuscleMass?: number;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  bodyFatMass?: number;
-
-  @IsOptional()
+export class ExtractInbodyRecordFromImageDto {
   @IsString()
-  imageUrl?: string;
+  image_url: string;
+}
+
+export class OcrExtractedInbodyRecordDto {
+  member_id: string | null;
+  weight: number | null;
+  skeletal_muscle_mass: number | null;
+  body_fat_percent: number | null;
 }
