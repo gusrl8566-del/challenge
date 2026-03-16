@@ -15,11 +15,11 @@ import {
 function resolveApiUrl(): string {
   const envUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
 
-  if (typeof window !== 'undefined') {
-    return '/api';
+  if (envUrl) {
+    return envUrl;
   }
 
-  return envUrl || 'https://api.megaworld.store';
+  return '/api';
 }
 
 const API_URL = resolveApiUrl();
