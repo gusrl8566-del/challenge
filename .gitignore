@@ -4,6 +4,8 @@ node_modules
 # environment
 .env
 .env.prod
+.env.local
+frontend/.env.local
 
 # database
 *.sqlite
