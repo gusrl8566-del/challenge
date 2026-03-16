@@ -32,15 +32,18 @@ export class InbodyRecordsService {
 
   async createOrUpdate(data: CreateInbodyRecordDto): Promise<InbodyRecord> {
     await this.ensureChallengeOpen();
+    const activeSeason = await this.challengeStatusService.getActiveSeasonOrDefault();
 
     const existing = await this.inbodyRecordsRepository.findOne({
       where: {
+        seasonId: activeSeason.id,
         memberId: data.member_id,
         recordType: data.record_type,
       },
     });
 
     const record = existing ?? this.inbodyRecordsRepository.create();
+    record.seasonId = activeSeason.id;
     record.memberId = data.member_id;
     record.name = data.name;
     record.recordType = data.record_type as InbodyRecordType;

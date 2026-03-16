@@ -12,10 +12,13 @@ export enum InbodyRecordType {
 }
 
 @Entity('inbody_records')
-@Unique(['memberId', 'recordType'])
+@Unique(['seasonId', 'memberId', 'recordType'])
 export class InbodyRecord {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Column({ name: 'season_id', type: 'varchar', nullable: true })
+  seasonId: string | null;
 
   @Column({ name: 'member_id', length: 50 })
   memberId: string;
