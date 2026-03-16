@@ -162,13 +162,29 @@ export default function AdminPage() {
     async function fetchDashboardData() {
       try {
         await adminAuthApi.validateToken();
+      } catch (error) {
+        const status = (error as { response?: { status?: number } })?.response?.status;
+
+        if (status === 401 || status === 403) {
+          clearAdminSession();
+          setMessageStatus('error');
+          setMessage('인증에 실패했습니다. 다시 로그인해 주세요.');
+          router.push('/admin/login');
+          return;
+        }
+
+        console.error('토큰 검증에 실패했습니다:', error);
+        setMessageStatus('error');
+        setMessage('인증 확인 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+        return;
+      }
+
+      try {
         await refreshData();
       } catch (error) {
         console.error('대시보드 데이터 조회에 실패했습니다:', error);
-        clearAdminSession();
         setMessageStatus('error');
-        setMessage('인증에 실패했습니다. 다시 로그인해 주세요.');
-        router.push('/admin/login');
+        setMessage('대시보드 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
       } finally {
         setLoading(false);
       }
@@ -734,7 +750,7 @@ export default function AdminPage() {
             { title: '증량왕', entries: rankings.gainKing },
             { title: '감량왕', entries: rankings.lossKing },
             { title: '소통왕', entries: rankings.communicationKing },
-            { title: '동기부여왕', entries: rankings.inspirationKing },
+            { title: '감동왕', entries: rankings.inspirationKing },
           ].map((category) => (
             <article
               key={category.title}

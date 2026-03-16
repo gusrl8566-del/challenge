@@ -41,7 +41,7 @@ const categories: {
   },
   {
     key: 'inspirationKing',
-    label: '동기부여왕',
+    label: '감동왕',
     icon: '⭐',
     isBodyMetrics: false,
     priorityText: '우선순위: 동기부여 점수 ↑',

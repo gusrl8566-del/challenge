@@ -69,7 +69,22 @@ export default function AdminParticipantDetailPage() {
     async function fetchData(id: string) {
       try {
         await adminAuthApi.validateToken();
+      } catch (error) {
+        const status = (error as { response?: { status?: number } })?.response?.status;
 
+        if (status === 401 || status === 403) {
+          clearAdminSession();
+          router.push('/admin/login');
+          return;
+        }
+
+        console.error('토큰 검증에 실패했습니다:', error);
+        setMessageStatus('error');
+        setMessage('인증 확인 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+        return;
+      }
+
+      try {
         const [participantData, inbodyData] = await Promise.all([
           adminApi.getParticipant(id),
           inbodyApi.getByParticipant(id),
@@ -92,8 +107,8 @@ export default function AdminParticipantDetailPage() {
         });
       } catch (error) {
         console.error('참가자 상세 조회에 실패했습니다:', error);
-        clearAdminSession();
-        router.push('/admin/login');
+        setMessageStatus('error');
+        setMessage('참가자 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
       } finally {
         setLoading(false);
       }

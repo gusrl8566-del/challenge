@@ -72,7 +72,7 @@ function addCandidateWorksheet(workbook: ExcelJS.Workbook, rankings: Rankings, s
       metricBuilder: (entry) => `소통 ${entry.participant.communicationScore}점`,
     },
     {
-      title: '동기부여왕',
+      title: '감동왕',
       key: 'inspirationKing',
       scoreLabel: '동기부여점수',
       metricBuilder: (entry) => `동기부여 ${entry.participant.inspirationScore}점`,
