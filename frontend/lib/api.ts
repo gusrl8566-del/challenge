@@ -13,13 +13,12 @@ import {
 } from '@/types';
 
 function resolveApiUrl(): string {
-  const envUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
-
-  if (envUrl) {
-    return envUrl;
+  if (typeof window !== 'undefined') {
+    return '/api';
   }
 
-  return '/api';
+  const envUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  return envUrl || 'http://localhost:3001/api';
 }
 
 const API_URL = resolveApiUrl();

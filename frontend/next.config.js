@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
-const backendApiBaseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace(/\/+$/, '');
+const backendApiBaseUrl = (
+  process.env.NEXT_INTERNAL_API_URL || 'http://backend:3001/api'
+).replace(/\/+$/, '');
 
 const nextConfig = {
   images: {
