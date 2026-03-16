@@ -189,6 +189,12 @@ export default function UploadPage() {
     <main className="mx-auto max-w-2xl px-4 py-8">
       <h1 className="mb-6 text-center text-4xl font-bold tracking-tight text-slate-900">인바디 업로드</h1>
 
+      {challengeStatus?.seasonName && (
+        <p className="mb-4 text-center text-lg font-medium text-slate-700">
+          현재 기수: <span className="font-semibold text-slate-900">{challengeStatus.seasonName}</span>
+        </p>
+      )}
+
       {statusWarning && (
         <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-lg text-amber-900">
           {statusWarning}
