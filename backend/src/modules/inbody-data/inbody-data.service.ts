@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { InbodyData } from '../../entities/inbody-data.entity';
@@ -25,6 +25,7 @@ export class InbodyDataService {
     data: SubmitInbodyDataDto,
   ): Promise<InbodyData> {
     await this.ensureChallengeOpen();
+    await this.syncParticipantToActiveSeason(participantId);
 
     let inbodyData = await this.inbodyDataRepository.findOne({
       where: { participantId },
@@ -169,6 +170,7 @@ export class InbodyDataService {
     filename: string,
   ): Promise<InbodyData> {
     await this.ensureChallengeOpen();
+    await this.syncParticipantToActiveSeason(participantId);
 
     let inbodyData = await this.findByParticipant(participantId);
 
@@ -216,5 +218,25 @@ export class InbodyDataService {
     if (!isOpen) {
       throw new ForbiddenException('아직은 챌린지에 참가할 수 없습니다.');
     }
+  }
+
+  private async syncParticipantToActiveSeason(participantId: string): Promise<void> {
+    const participant = await this.participantsRepository.findOne({
+      where: { id: participantId },
+      select: ['id', 'seasonId'],
+    });
+
+    if (!participant) {
+      throw new NotFoundException('Participant not found');
+    }
+
+    const activeSeason = await this.challengeStatusService.getActiveSeasonOrDefault();
+    if (participant.seasonId === activeSeason.id) {
+      return;
+    }
+
+    participant.seasonId = activeSeason.id;
+    await this.participantsRepository.save(participant);
+    await this.inbodyDataRepository.delete({ participantId });
   }
 }

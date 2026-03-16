@@ -83,7 +83,7 @@ export class ParticipantsService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    return participant;
+    return this.syncParticipantSeason(participant);
   }
 
   async quickAccess(dto: QuickAccessDto): Promise<Participant> {
@@ -105,16 +105,11 @@ export class ParticipantsService {
 
     let participant = await this.participantsRepository.findOne({ where });
     if (participant) {
-      const activeSeason = await this.challengeStatusService.getActiveSeasonOrDefault();
-      if (participant.seasonId !== activeSeason.id) {
-        participant.seasonId = activeSeason.id;
-        await this.inbodyDataRepository.delete({ participantId: participant.id });
-      }
-
       if (dto.name && participant.name !== dto.name.trim()) {
         participant.name = dto.name.trim();
       }
-      participant = await this.participantsRepository.save(participant);
+
+      participant = await this.syncParticipantSeason(participant);
       return participant;
     }
 
@@ -168,6 +163,17 @@ export class ParticipantsService {
     return this.participantsRepository.findOne({
       where: { email: email.trim().toLowerCase() },
     });
+  }
+
+  private async syncParticipantSeason(participant: Participant): Promise<Participant> {
+    const activeSeason = await this.challengeStatusService.getActiveSeasonOrDefault();
+    if (participant.seasonId === activeSeason.id) {
+      return participant;
+    }
+
+    participant.seasonId = activeSeason.id;
+    await this.inbodyDataRepository.delete({ participantId: participant.id });
+    return this.participantsRepository.save(participant);
   }
 
   private normalizePhone(value?: string): string | null {
