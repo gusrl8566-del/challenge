@@ -41,7 +41,7 @@ export class InbodyRecordsService {
     await this.ensureChallengeOpen();
     const activeSeason = await this.challengeStatusService.getActiveSeasonOrDefault();
 
-    await this.syncParticipantForActiveSeason({
+    const participant = await this.syncParticipantForActiveSeason({
       memberId: data.member_id,
       name: data.name,
       activeSeasonId: activeSeason.id,
@@ -65,14 +65,17 @@ export class InbodyRecordsService {
     record.bodyFatPercent = data.body_fat_percent ?? null;
     record.imageUrl = data.image_url ?? null;
 
-    return this.inbodyRecordsRepository.save(record);
+    const savedRecord = await this.inbodyRecordsRepository.save(record);
+    await this.syncInbodyDataFromRecord(participant.id, savedRecord);
+
+    return savedRecord;
   }
 
   private async syncParticipantForActiveSeason(params: {
     memberId: string;
     name: string;
     activeSeasonId: string;
-  }): Promise<void> {
+  }): Promise<Participant> {
     const memberId = params.memberId.trim();
     const name = params.name.trim();
 
@@ -92,8 +95,7 @@ export class InbodyRecordsService {
         isActive: true,
         seasonId: params.activeSeasonId,
       });
-      await this.participantsRepository.save(participant);
-      return;
+      return this.participantsRepository.save(participant);
     }
 
     const seasonChanged = participant.seasonId !== params.activeSeasonId;
@@ -116,6 +118,51 @@ export class InbodyRecordsService {
     if (seasonChanged) {
       await this.inbodyDataRepository.delete({ participantId: participant.id });
     }
+
+    return participant;
+  }
+
+  private async syncInbodyDataFromRecord(participantId: string, record: InbodyRecord): Promise<void> {
+    let inbodyData = await this.inbodyDataRepository.findOne({
+      where: { participantId },
+    });
+
+    if (!inbodyData) {
+      inbodyData = this.inbodyDataRepository.create({
+        participantId,
+      });
+    }
+
+    if (record.recordType === InbodyRecordType.START) {
+      if (record.weight !== null) {
+        inbodyData.beforeWeight = record.weight;
+      }
+      if (record.skeletalMuscleMass !== null) {
+        inbodyData.beforeSkeletalMuscleMass = record.skeletalMuscleMass;
+      }
+      if (record.bodyFatPercent !== null) {
+        inbodyData.beforeBodyFatMass = record.bodyFatPercent;
+      }
+      if (record.imageUrl !== null) {
+        inbodyData.beforeImageUrl = record.imageUrl;
+      }
+    } else {
+      if (record.weight !== null) {
+        inbodyData.afterWeight = record.weight;
+      }
+      if (record.skeletalMuscleMass !== null) {
+        inbodyData.afterSkeletalMuscleMass = record.skeletalMuscleMass;
+      }
+      if (record.bodyFatPercent !== null) {
+        inbodyData.afterBodyFatMass = record.bodyFatPercent;
+      }
+      if (record.imageUrl !== null) {
+        inbodyData.afterImageUrl = record.imageUrl;
+      }
+    }
+
+    inbodyData.submittedAt = new Date();
+    await this.inbodyDataRepository.save(inbodyData);
   }
 
   private async ensureChallengeOpen(): Promise<void> {
