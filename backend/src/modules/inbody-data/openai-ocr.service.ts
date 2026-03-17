@@ -107,6 +107,18 @@ const PARTICIPANT_METRICS_CROP = {
   widthRatio: 0.78,
   heightRatio: 0.46,
 };
+const PARTICIPANT_COMPOSITION_CROP = {
+  leftRatio: 0.01,
+  topRatio: 0.14,
+  widthRatio: 0.62,
+  heightRatio: 0.15,
+};
+const PARTICIPANT_MUSCLE_CROP = {
+  leftRatio: 0.01,
+  topRatio: 0.29,
+  widthRatio: 0.62,
+  heightRatio: 0.16,
+};
 
 const FIELD_RANGES: Record<FieldKey, { min: number; max: number }> = {
   weight: { min: 30, max: 200 },
@@ -304,6 +316,33 @@ export class OpenAiOcrService {
       'low',
     );
 
+    let fastHeaderTextResult: ParticipantRecordResponse | null = null;
+    let fastFocusedTextMetricsResult: ParticipantRecordResponse | null = null;
+    try {
+      fastHeaderTextResult = await this.extractMemberIdFromHeaderCrop(
+        apiKey,
+        model,
+        fastFocusImages.header,
+        'high',
+      );
+    } catch {
+      fastHeaderTextResult = null;
+    }
+
+    try {
+      fastFocusedTextMetricsResult = await this.extractParticipantMetricsFromFocusedText(
+        apiKey,
+        model,
+        {
+          composition: fastFocusImages.composition,
+          muscle: fastFocusImages.muscle,
+        },
+        'high',
+      );
+    } catch {
+      fastFocusedTextMetricsResult = null;
+    }
+
     let fastFocusedResult: ParticipantRecordResponse | null = null;
     try {
       fastFocusedResult = await this.requestParticipantRecordWithFocus(
@@ -320,7 +359,35 @@ export class OpenAiOcrService {
       fastFocusedResult = null;
     }
 
-    const mergedFastResult = this.mergeParticipantResults([fastFocusedResult, fastResult]);
+    let fastTextParsedResult: ParticipantRecordResponse | null = null;
+    const mergedFastPrimary = this.mergeParticipantResults([
+      fastHeaderTextResult,
+      fastFocusedTextMetricsResult,
+      fastFocusedResult,
+      fastResult,
+    ]);
+
+    if (this.hasMissingParticipantField(mergedFastPrimary)) {
+      try {
+        const fastText = await this.requestSingleImageOcrText(
+          apiKey,
+          model,
+          this.toJpegDataUrl(fastImage),
+          'low',
+        );
+        fastTextParsedResult = this.participantResultFromRawText(fastText);
+      } catch {
+        fastTextParsedResult = null;
+      }
+    }
+
+    const mergedFastResult = this.mergeParticipantResults([
+      fastHeaderTextResult,
+      fastFocusedTextMetricsResult,
+      fastTextParsedResult,
+      fastFocusedResult,
+      fastResult,
+    ]);
 
     if (!this.hasMissingParticipantField(mergedFastResult)) {
       return this.sanitizeParticipantResult(mergedFastResult);
@@ -338,6 +405,8 @@ export class OpenAiOcrService {
       );
 
       let fallbackFocusedResult: ParticipantRecordResponse | null = null;
+      let fallbackHeaderTextResult: ParticipantRecordResponse | null = null;
+      let fallbackFocusedTextMetricsResult: ParticipantRecordResponse | null = null;
       try {
         fallbackFocusedResult = await this.requestParticipantRecordWithFocus(
           apiKey,
@@ -354,8 +423,59 @@ export class OpenAiOcrService {
         fallbackFocusedResult = null;
       }
 
+      try {
+        fallbackHeaderTextResult = await this.extractMemberIdFromHeaderCrop(
+          apiKey,
+          model,
+          normalizedFocusImages.header,
+          'high',
+        );
+      } catch {
+        fallbackHeaderTextResult = null;
+      }
+
+      try {
+        fallbackFocusedTextMetricsResult = await this.extractParticipantMetricsFromFocusedText(
+          apiKey,
+          model,
+          {
+            composition: normalizedFocusImages.composition,
+            muscle: normalizedFocusImages.muscle,
+          },
+          'high',
+        );
+      } catch {
+        fallbackFocusedTextMetricsResult = null;
+      }
+
+      let fallbackTextParsedResult: ParticipantRecordResponse | null = null;
+      const mergedFallbackPrimary = this.mergeParticipantResults([
+        fallbackHeaderTextResult,
+        fallbackFocusedTextMetricsResult,
+        fallbackFocusedResult,
+        fallbackResult,
+      ]);
+
+      if (this.hasMissingParticipantField(mergedFallbackPrimary)) {
+        try {
+          const fallbackText = await this.requestSingleImageOcrText(
+            apiKey,
+            model,
+            this.toJpegDataUrl(normalized),
+            'high',
+            OCR_FALLBACK_TIMEOUT_MS,
+          );
+          fallbackTextParsedResult = this.participantResultFromRawText(fallbackText);
+        } catch {
+          fallbackTextParsedResult = null;
+        }
+      }
+
       return this.sanitizeParticipantResult(
         this.mergeParticipantResults([
+          fallbackHeaderTextResult,
+          fallbackFocusedTextMetricsResult,
+          fallbackTextParsedResult,
           fallbackFocusedResult,
           fallbackResult,
           mergedFastResult,
@@ -382,11 +502,148 @@ export class OpenAiOcrService {
     };
 
     return {
-      memberId: firstBy((item) => item.memberId),
+      memberId: this.pickBestMemberId(candidates.map((item) => item.memberId)),
       weight: firstBy((item) => item.weight),
       skeletalMuscleMass: firstBy((item) => item.skeletalMuscleMass),
       bodyFatMass: firstBy((item) => item.bodyFatMass),
     };
+  }
+
+  private pickBestMemberId(values: Array<string | null>): string | null {
+    const normalized = values
+      .map((value) => value?.replace(/\D/g, '') ?? '')
+      .filter((value) => value.length > 0);
+
+    if (normalized.length === 0) {
+      return null;
+    }
+
+    const preferred11 = normalized.find((value) => value.length === 11 && value.startsWith('0'));
+    if (preferred11) {
+      return preferred11;
+    }
+
+    const preferred10 = normalized.find((value) => value.length === 10 && value.startsWith('0'));
+    if (preferred10) {
+      return preferred10;
+    }
+
+    normalized.sort((a, b) => b.length - a.length);
+    return normalized[0] || null;
+  }
+
+  private participantResultFromRawText(text: string): ParticipantRecordResponse {
+    const parsed = this.extractSingleParseFromText(text);
+
+    return {
+      memberId: this.extractMemberIdFromOcrText(text),
+      weight: parsed.metrics.weight,
+      skeletalMuscleMass: parsed.metrics.skeletalMuscleMass,
+      bodyFatMass: parsed.metrics.bodyFatMass,
+    };
+  }
+
+  private async extractMemberIdFromHeaderCrop(
+    apiKey: string,
+    model: string,
+    headerImage: Buffer,
+    detail: 'low' | 'high' | 'auto' = 'high',
+  ): Promise<ParticipantRecordResponse> {
+    const headerText = await this.requestSingleImageOcrText(
+      apiKey,
+      model,
+      this.toJpegDataUrl(headerImage),
+      detail,
+      OCR_TIMEOUT_MS,
+    );
+
+    return {
+      memberId: this.extractMemberIdFromOcrText(headerText),
+      weight: null,
+      skeletalMuscleMass: null,
+      bodyFatMass: null,
+    };
+  }
+
+  private async extractParticipantMetricsFromFocusedText(
+    apiKey: string,
+    model: string,
+    images: {
+      composition: Buffer;
+      muscle: Buffer;
+    },
+    detail: 'low' | 'high' | 'auto' = 'high',
+  ): Promise<ParticipantRecordResponse> {
+    const [compositionText, muscleText] = await Promise.all([
+      this.requestSingleImageOcrText(
+        apiKey,
+        model,
+        this.toJpegDataUrl(images.composition),
+        detail,
+        OCR_TIMEOUT_MS,
+      ),
+      this.requestSingleImageOcrText(
+        apiKey,
+        model,
+        this.toJpegDataUrl(images.muscle),
+        detail,
+        OCR_TIMEOUT_MS,
+      ),
+    ]);
+
+    const compositionParsed = this.extractSingleParseFromText(compositionText).metrics;
+    const muscleParsed = this.extractSingleParseFromText(muscleText).metrics;
+
+    return {
+      memberId: null,
+      weight: compositionParsed.weight ?? muscleParsed.weight,
+      skeletalMuscleMass: muscleParsed.skeletalMuscleMass ?? compositionParsed.skeletalMuscleMass,
+      bodyFatMass: compositionParsed.bodyFatMass ?? muscleParsed.bodyFatMass,
+    };
+  }
+
+  private extractMemberIdFromOcrText(text: string): string | null {
+    const lines = text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+
+    const withDigitsOnly = (value: string): string =>
+      value
+        .replace(/[Oo]/g, '0')
+        .replace(/[Il]/g, '1')
+        .replace(/\D/g, '');
+
+    for (const line of lines) {
+      if (!/회원번호|member\s*id/i.test(line)) {
+        continue;
+      }
+
+      const sameLine = withDigitsOnly(line);
+      if (sameLine.length >= 8) {
+        return sameLine;
+      }
+    }
+
+    for (let i = 0; i < lines.length; i += 1) {
+      if (!/회원번호|member\s*id/i.test(lines[i])) {
+        continue;
+      }
+
+      const nextLine = lines[i + 1] ?? '';
+      const nextLineDigits = withDigitsOnly(nextLine);
+      if (nextLineDigits.length >= 8) {
+        return nextLineDigits;
+      }
+    }
+
+    const allMatches = text.match(/\d{8,14}/g) ?? [];
+    if (allMatches.length === 0) {
+      return null;
+    }
+
+    allMatches.sort((a, b) => b.length - a.length);
+    return allMatches[0] || null;
   }
 
   private async requestOcrText(
@@ -1014,6 +1271,30 @@ export class OpenAiOcrService {
     }
 
     const digits = memberId.replace(/\D/g, '');
+    if (digits.length === 10 && !digits.startsWith('0') && /^1\d{9}$/.test(digits)) {
+      return `0${digits}`;
+    }
+
+    if (digits.length >= 10 && digits.length <= 11) {
+      return digits;
+    }
+
+    if (digits.length > 11) {
+      for (let i = 0; i <= digits.length - 11; i += 1) {
+        const candidate = digits.slice(i, i + 11);
+        if (candidate.startsWith('0')) {
+          return candidate;
+        }
+      }
+
+      for (let i = 0; i <= digits.length - 10; i += 1) {
+        const candidate = digits.slice(i, i + 10);
+        if (candidate.startsWith('0')) {
+          return candidate;
+        }
+      }
+    }
+
     if (digits.length >= 6) {
       return digits;
     }
@@ -1149,6 +1430,8 @@ export class OpenAiOcrService {
   private async prepareParticipantFocusImages(source: Buffer): Promise<{
     header: Buffer;
     metrics: Buffer;
+    composition: Buffer;
+    muscle: Buffer;
   }> {
     try {
       const metadata = await sharp(source).metadata();
@@ -1161,6 +1444,8 @@ export class OpenAiOcrService {
 
       const headerRegion = this.toCropRegion(width, height, PARTICIPANT_HEADER_CROP);
       const metricsRegion = this.toCropRegion(width, height, PARTICIPANT_METRICS_CROP);
+      const compositionRegion = this.toCropRegion(width, height, PARTICIPANT_COMPOSITION_CROP);
+      const muscleRegion = this.toCropRegion(width, height, PARTICIPANT_MUSCLE_CROP);
 
       const header = await sharp(source)
         .extract(headerRegion)
@@ -1172,7 +1457,17 @@ export class OpenAiOcrService {
         .jpeg({ quality: 92 })
         .toBuffer();
 
-      return { header, metrics };
+      const composition = await sharp(source)
+        .extract(compositionRegion)
+        .jpeg({ quality: 92 })
+        .toBuffer();
+
+      const muscle = await sharp(source)
+        .extract(muscleRegion)
+        .jpeg({ quality: 92 })
+        .toBuffer();
+
+      return { header, metrics, composition, muscle };
     } catch {
       throw new InternalServerErrorException('Failed to prepare focused OCR images');
     }
