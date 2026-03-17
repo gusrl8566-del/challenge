@@ -228,7 +228,7 @@ export const inbodyRecordApi = {
     name: string;
     weight: number;
     skeletal_muscle_mass: number;
-    body_fat_percent: number;
+    body_fat_mass: number;
     record_type: 'start' | 'end';
     image_url: string;
   }) => {

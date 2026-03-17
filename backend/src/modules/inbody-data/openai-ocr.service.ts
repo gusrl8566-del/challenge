@@ -18,7 +18,7 @@ type ParticipantOcrResult = {
   memberId: string | null;
   weight: number | null;
   skeletalMuscleMass: number | null;
-  bodyFatPercent: number | null;
+  bodyFatMass: number | null;
 };
 
 type ParsedInbodyMetrics = {
@@ -58,7 +58,7 @@ type ParticipantRecordResponse = {
   memberId: string | null;
   weight: number | null;
   skeletalMuscleMass: number | null;
-  bodyFatPercent: number | null;
+  bodyFatMass: number | null;
 };
 
 type SourceImages = {
@@ -100,6 +100,13 @@ const MAX_DESKEW_ANGLE = 12;
 const ONE_DECIMAL_PATTERN = /^\d{2,3}\.\d$/;
 const OCR_TIMEOUT_MS = 10000;
 const OCR_FALLBACK_TIMEOUT_MS = 22000;
+const PARTICIPANT_HEADER_CROP = { leftRatio: 0, topRatio: 0, widthRatio: 1, heightRatio: 0.24 };
+const PARTICIPANT_METRICS_CROP = {
+  leftRatio: 0.02,
+  topRatio: 0.26,
+  widthRatio: 0.78,
+  heightRatio: 0.46,
+};
 
 const FIELD_RANGES: Record<FieldKey, { min: number; max: number }> = {
   weight: { min: 30, max: 200 },
@@ -288,6 +295,7 @@ export class OpenAiOcrService {
     const model = this.configService.get<string>('OPENAI_OCR_MODEL_SINGLE', 'gpt-4o-mini');
     const imageFilePath = this.resolveImageFilePath(imageUrl);
     const fastImage = await this.prepareFastOcrImage(imageFilePath);
+    const fastFocusImages = await this.prepareParticipantFocusImages(fastImage);
 
     const fastResult = await this.requestParticipantRecord(
       apiKey,
@@ -296,12 +304,31 @@ export class OpenAiOcrService {
       'low',
     );
 
-    if (!this.hasMissingParticipantField(fastResult)) {
-      return this.sanitizeParticipantResult(fastResult);
+    let fastFocusedResult: ParticipantRecordResponse | null = null;
+    try {
+      fastFocusedResult = await this.requestParticipantRecordWithFocus(
+        apiKey,
+        model,
+        {
+          fullImageDataUrl: this.toJpegDataUrl(fastImage),
+          headerImageDataUrl: this.toJpegDataUrl(fastFocusImages.header),
+          metricsImageDataUrl: this.toJpegDataUrl(fastFocusImages.metrics),
+        },
+        'low',
+      );
+    } catch {
+      fastFocusedResult = null;
+    }
+
+    const mergedFastResult = this.mergeParticipantResults([fastFocusedResult, fastResult]);
+
+    if (!this.hasMissingParticipantField(mergedFastResult)) {
+      return this.sanitizeParticipantResult(mergedFastResult);
     }
 
     try {
       const normalized = await this.normalizePhoto(imageFilePath);
+      const normalizedFocusImages = await this.prepareParticipantFocusImages(normalized);
       const fallbackResult = await this.requestParticipantRecord(
         apiKey,
         model,
@@ -310,16 +337,56 @@ export class OpenAiOcrService {
         OCR_FALLBACK_TIMEOUT_MS,
       );
 
-      return this.sanitizeParticipantResult({
-        memberId: fallbackResult.memberId ?? fastResult.memberId,
-        weight: fallbackResult.weight ?? fastResult.weight,
-        skeletalMuscleMass:
-          fallbackResult.skeletalMuscleMass ?? fastResult.skeletalMuscleMass,
-        bodyFatPercent: fallbackResult.bodyFatPercent ?? fastResult.bodyFatPercent,
-      });
+      let fallbackFocusedResult: ParticipantRecordResponse | null = null;
+      try {
+        fallbackFocusedResult = await this.requestParticipantRecordWithFocus(
+          apiKey,
+          model,
+          {
+            fullImageDataUrl: this.toJpegDataUrl(normalized),
+            headerImageDataUrl: this.toJpegDataUrl(normalizedFocusImages.header),
+            metricsImageDataUrl: this.toJpegDataUrl(normalizedFocusImages.metrics),
+          },
+          'high',
+          OCR_FALLBACK_TIMEOUT_MS,
+        );
+      } catch {
+        fallbackFocusedResult = null;
+      }
+
+      return this.sanitizeParticipantResult(
+        this.mergeParticipantResults([
+          fallbackFocusedResult,
+          fallbackResult,
+          mergedFastResult,
+        ]),
+      );
     } catch {
-      return this.sanitizeParticipantResult(fastResult);
+      return this.sanitizeParticipantResult(mergedFastResult);
     }
+  }
+
+  private mergeParticipantResults(
+    results: Array<ParticipantRecordResponse | null>,
+  ): ParticipantRecordResponse {
+    const candidates = results.filter((item): item is ParticipantRecordResponse => item !== null);
+
+    const firstBy = <T>(selector: (item: ParticipantRecordResponse) => T | null): T | null => {
+      for (const candidate of candidates) {
+        const value = selector(candidate);
+        if (value !== null) {
+          return value;
+        }
+      }
+      return null;
+    };
+
+    return {
+      memberId: firstBy((item) => item.memberId),
+      weight: firstBy((item) => item.weight),
+      skeletalMuscleMass: firstBy((item) => item.skeletalMuscleMass),
+      bodyFatMass: firstBy((item) => item.bodyFatMass),
+    };
   }
 
   private async requestOcrText(
@@ -489,12 +556,12 @@ export class OpenAiOcrService {
             schema: {
               type: 'object',
               additionalProperties: false,
-              required: ['memberId', 'weight', 'skeletalMuscleMass', 'bodyFatPercent'],
+              required: ['memberId', 'weight', 'skeletalMuscleMass', 'bodyFatMass'],
               properties: {
                 memberId: { type: ['string', 'null'] },
                 weight: { type: ['number', 'null'] },
                 skeletalMuscleMass: { type: ['number', 'null'] },
-                bodyFatPercent: { type: ['number', 'null'] },
+                bodyFatMass: { type: ['number', 'null'] },
               },
             },
           },
@@ -503,7 +570,7 @@ export class OpenAiOcrService {
           {
             role: 'system',
             content:
-              'Extract these fields from the InBody result sheet image: memberId(회원번호), weight(체중), skeletalMuscleMass(골격근량), bodyFatPercent(체지방률). Return null if uncertain.',
+              'Extract these fields from the InBody result sheet image: memberId(회원번호), weight(체중), skeletalMuscleMass(골격근량), bodyFatMass(체지방량). Return null if uncertain.',
           },
           {
             role: 'user',
@@ -511,12 +578,107 @@ export class OpenAiOcrService {
               {
                 type: 'text',
                 text:
-                  'Return only JSON fields. bodyFatPercent must be percent value, not body fat mass.',
+                  'Return only JSON fields. bodyFatMass must be body fat mass in kg (체지방량), not percent.',
               },
               {
                 type: 'image_url',
                 image_url: {
                   url: imageDataUrl,
+                  detail,
+                },
+              },
+            ],
+          },
+        ],
+      },
+      timeoutMs,
+    );
+
+    const data = (await response.json()) as OpenAiResponse;
+    if (!response.ok) {
+      throw new InternalServerErrorException(
+        data.error?.message || 'OpenAI OCR request failed',
+      );
+    }
+
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) {
+      throw new InternalServerErrorException('OpenAI OCR response is empty');
+    }
+
+    try {
+      return JSON.parse(content) as ParticipantRecordResponse;
+    } catch {
+      throw new InternalServerErrorException('Failed to parse OpenAI OCR response');
+    }
+  }
+
+  private async requestParticipantRecordWithFocus(
+    apiKey: string,
+    model: string,
+    images: {
+      fullImageDataUrl: string;
+      headerImageDataUrl: string;
+      metricsImageDataUrl: string;
+    },
+    detail: 'low' | 'high' | 'auto' = 'low',
+    timeoutMs = OCR_TIMEOUT_MS,
+  ): Promise<ParticipantRecordResponse> {
+    const response = await this.fetchOpenAi(
+      apiKey,
+      {
+        model,
+        temperature: 0,
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'participant_inbody_record_focus',
+            strict: true,
+            schema: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['memberId', 'weight', 'skeletalMuscleMass', 'bodyFatMass'],
+              properties: {
+                memberId: { type: ['string', 'null'] },
+                weight: { type: ['number', 'null'] },
+                skeletalMuscleMass: { type: ['number', 'null'] },
+                bodyFatMass: { type: ['number', 'null'] },
+              },
+            },
+          },
+        },
+        messages: [
+          {
+            role: 'system',
+            content:
+              'Extract InBody fields with high precision. Use full image context and focused crops together. Return null when uncertain.',
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text:
+                  'Image #1 is full sheet. Image #2 is top header (회원번호). Image #3 is left-center metrics area (체중/골격근량/체지방량 영역 포함). Extract memberId(회원번호), weight(체중 kg), skeletalMuscleMass(골격근량 kg), bodyFatMass(체지방량 kg). IMPORTANT: bodyFatMass is kg value, not 체지방률(%).',
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: images.fullImageDataUrl,
+                  detail,
+                },
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: images.headerImageDataUrl,
+                  detail,
+                },
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: images.metricsImageDataUrl,
                   detail,
                 },
               },
@@ -836,14 +998,28 @@ export class OpenAiOcrService {
   }
 
   private sanitizeParticipantResult(result: ParticipantRecordResponse): ParticipantOcrResult {
-    const memberId = result.memberId?.trim() || null;
+    const memberId = this.sanitizeMemberId(result.memberId);
 
     return {
       memberId,
       weight: this.sanitizeParticipantNumber(result.weight, 30, 300),
       skeletalMuscleMass: this.sanitizeParticipantNumber(result.skeletalMuscleMass, 10, 100),
-      bodyFatPercent: this.sanitizeParticipantNumber(result.bodyFatPercent, 1, 80),
+      bodyFatMass: this.sanitizeParticipantNumber(result.bodyFatMass, 5, 60),
     };
+  }
+
+  private sanitizeMemberId(memberId: string | null): string | null {
+    if (!memberId) {
+      return null;
+    }
+
+    const digits = memberId.replace(/\D/g, '');
+    if (digits.length >= 6) {
+      return digits;
+    }
+
+    const trimmed = memberId.trim();
+    return trimmed.length > 0 ? trimmed : null;
   }
 
   private sanitizeParticipantNumber(
@@ -868,7 +1044,7 @@ export class OpenAiOcrService {
       !result.memberId ||
       result.weight === null ||
       result.skeletalMuscleMass === null ||
-      result.bodyFatPercent === null
+      result.bodyFatMass === null
     );
   }
 
@@ -968,6 +1144,56 @@ export class OpenAiOcrService {
     } catch {
       throw new InternalServerErrorException('Failed to prepare InBody image');
     }
+  }
+
+  private async prepareParticipantFocusImages(source: Buffer): Promise<{
+    header: Buffer;
+    metrics: Buffer;
+  }> {
+    try {
+      const metadata = await sharp(source).metadata();
+      const width = metadata.width ?? 0;
+      const height = metadata.height ?? 0;
+
+      if (width < 100 || height < 100) {
+        throw new Error('Image too small');
+      }
+
+      const headerRegion = this.toCropRegion(width, height, PARTICIPANT_HEADER_CROP);
+      const metricsRegion = this.toCropRegion(width, height, PARTICIPANT_METRICS_CROP);
+
+      const header = await sharp(source)
+        .extract(headerRegion)
+        .jpeg({ quality: 92 })
+        .toBuffer();
+
+      const metrics = await sharp(source)
+        .extract(metricsRegion)
+        .jpeg({ quality: 92 })
+        .toBuffer();
+
+      return { header, metrics };
+    } catch {
+      throw new InternalServerErrorException('Failed to prepare focused OCR images');
+    }
+  }
+
+  private toCropRegion(
+    imageWidth: number,
+    imageHeight: number,
+    region: { leftRatio: number; topRatio: number; widthRatio: number; heightRatio: number },
+  ): { left: number; top: number; width: number; height: number } {
+    const left = Math.max(0, Math.floor(imageWidth * region.leftRatio));
+    const top = Math.max(0, Math.floor(imageHeight * region.topRatio));
+    const width = Math.max(40, Math.floor(imageWidth * region.widthRatio));
+    const height = Math.max(40, Math.floor(imageHeight * region.heightRatio));
+
+    return {
+      left,
+      top,
+      width: Math.min(width, imageWidth - left),
+      height: Math.min(height, imageHeight - top),
+    };
   }
 
   private detectDeskewAngle(gray: any): number {

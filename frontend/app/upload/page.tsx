@@ -22,7 +22,7 @@ export default function UploadPage() {
   const [name, setName] = useState('');
   const [weight, setWeight] = useState('');
   const [skeletalMuscleMass, setSkeletalMuscleMass] = useState('');
-  const [bodyFatPercent, setBodyFatPercent] = useState('');
+  const [bodyFatMass, setBodyFatMass] = useState('');
   const [recordType, setRecordType] = useState<RecordType>('start');
   const [challengeStatus, setChallengeStatus] = useState<ChallengeStatus | null>(null);
   const [statusWarning, setStatusWarning] = useState('');
@@ -84,7 +84,7 @@ export default function UploadPage() {
       setMemberId(extracted.member_id || '');
       setWeight(toInputValue(extracted.weight));
       setSkeletalMuscleMass(toInputValue(extracted.skeletal_muscle_mass));
-      setBodyFatPercent(toInputValue(extracted.body_fat_percent));
+      setBodyFatMass(toInputValue(extracted.body_fat_mass));
 
       setStep('confirm');
     } catch {
@@ -111,7 +111,7 @@ export default function UploadPage() {
 
     const parsedWeight = Number(weight);
     const parsedSkeletalMuscleMass = Number(skeletalMuscleMass);
-    const parsedBodyFatPercent = Number(bodyFatPercent);
+    const parsedBodyFatMass = Number(bodyFatMass);
 
     if (!name.trim()) {
       setMessage('이름을 입력해주세요.');
@@ -128,9 +128,9 @@ export default function UploadPage() {
     if (
       !Number.isFinite(parsedWeight) ||
       !Number.isFinite(parsedSkeletalMuscleMass) ||
-      !Number.isFinite(parsedBodyFatPercent)
+      !Number.isFinite(parsedBodyFatMass)
     ) {
-      setMessage('체중, 골격근량, 체지방률을 정확히 입력해주세요.');
+      setMessage('체중, 골격근량, 체지방량을 정확히 입력해주세요.');
       setMessageStatus('error');
       return;
     }
@@ -141,7 +141,7 @@ export default function UploadPage() {
         name: name.trim(),
         weight: parsedWeight,
         skeletal_muscle_mass: parsedSkeletalMuscleMass,
-        body_fat_percent: parsedBodyFatPercent,
+        body_fat_mass: parsedBodyFatMass,
         record_type: recordType,
         image_url: imageUrl,
       });
@@ -163,7 +163,7 @@ export default function UploadPage() {
     setName('');
     setWeight('');
     setSkeletalMuscleMass('');
-    setBodyFatPercent('');
+    setBodyFatMass('');
     setRecordType('start');
     setMessage('');
     setMessageStatus(null);
@@ -282,7 +282,7 @@ export default function UploadPage() {
                 자동 인식(OCR) 결과가 틀릴 수 있습니다.
               </p>
               <p className="mt-1 text-[20px] leading-snug text-red-800">
-                회원번호, 체중, 골격근량, 체지방률을 직접 확인하고 수정한 뒤 제출해주세요.
+                회원번호, 체중, 골격근량, 체지방량을 직접 확인하고 수정한 뒤 제출해주세요.
               </p>
             </div>
 
@@ -337,13 +337,13 @@ export default function UploadPage() {
             </label>
 
             <label className="block">
-              <span className="mb-2 block text-xl font-medium text-slate-900">체지방률 (%)</span>
+              <span className="mb-2 block text-xl font-medium text-slate-900">체지방량 (kg)</span>
               <input
                 type="number"
                 step="0.1"
                 inputMode="decimal"
-                value={bodyFatPercent}
-                onChange={(e) => setBodyFatPercent(e.target.value)}
+                value={bodyFatMass}
+                onChange={(e) => setBodyFatMass(e.target.value)}
                 className="h-[64px] w-full rounded-xl border border-slate-300 px-4 text-[22px]"
                 required
               />

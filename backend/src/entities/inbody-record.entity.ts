@@ -41,7 +41,7 @@ export class InbodyRecord {
   skeletalMuscleMass: number | null;
 
   @Column({ name: 'body_fat_percent', type: 'decimal', precision: 5, scale: 2, nullable: true })
-  bodyFatPercent: number | null;
+  bodyFatMass: number | null;
 
   @Column({ name: 'image_url', type: 'varchar', length: 500, nullable: true })
   imageUrl: string | null;

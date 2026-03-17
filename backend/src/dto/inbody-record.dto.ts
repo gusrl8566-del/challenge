@@ -31,7 +31,7 @@ export class CreateInbodyRecordDto {
   @IsNumber()
   @Min(0)
   @Max(100)
-  body_fat_percent?: number;
+  body_fat_mass?: number;
 
   @IsOptional()
   @IsString()
@@ -47,5 +47,5 @@ export class OcrExtractedInbodyRecordDto {
   member_id: string | null;
   weight: number | null;
   skeletal_muscle_mass: number | null;
-  body_fat_percent: number | null;
+  body_fat_mass: number | null;
 }

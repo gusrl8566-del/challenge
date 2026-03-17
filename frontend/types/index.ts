@@ -86,7 +86,7 @@ export interface ParticipantInbodyOcrResult {
   member_id: string | null;
   weight: number | null;
   skeletal_muscle_mass: number | null;
-  body_fat_percent: number | null;
+  body_fat_mass: number | null;
 }
 
 export interface ParticipantInbodyRecord {
@@ -95,7 +95,7 @@ export interface ParticipantInbodyRecord {
   name: string;
   weight: number;
   skeletalMuscleMass: number;
-  bodyFatPercent: number;
+  bodyFatMass: number;
   recordType: 'start' | 'end';
   imageUrl: string;
   createdAt: string;

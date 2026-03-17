@@ -33,7 +33,7 @@ export class InbodyRecordsService {
       member_id: extracted.memberId,
       weight: extracted.weight,
       skeletal_muscle_mass: extracted.skeletalMuscleMass,
-      body_fat_percent: extracted.bodyFatPercent,
+      body_fat_mass: extracted.bodyFatMass,
     };
   }
 
@@ -62,7 +62,7 @@ export class InbodyRecordsService {
     record.recordType = data.record_type as InbodyRecordType;
     record.weight = data.weight ?? null;
     record.skeletalMuscleMass = data.skeletal_muscle_mass ?? null;
-    record.bodyFatPercent = data.body_fat_percent ?? null;
+    record.bodyFatMass = data.body_fat_mass ?? null;
     record.imageUrl = data.image_url ?? null;
 
     const savedRecord = await this.inbodyRecordsRepository.save(record);
@@ -140,8 +140,8 @@ export class InbodyRecordsService {
       if (record.skeletalMuscleMass !== null) {
         inbodyData.beforeSkeletalMuscleMass = record.skeletalMuscleMass;
       }
-      if (record.bodyFatPercent !== null) {
-        inbodyData.beforeBodyFatMass = record.bodyFatPercent;
+      if (record.bodyFatMass !== null) {
+        inbodyData.beforeBodyFatMass = record.bodyFatMass;
       }
       if (record.imageUrl !== null) {
         inbodyData.beforeImageUrl = record.imageUrl;
@@ -153,8 +153,8 @@ export class InbodyRecordsService {
       if (record.skeletalMuscleMass !== null) {
         inbodyData.afterSkeletalMuscleMass = record.skeletalMuscleMass;
       }
-      if (record.bodyFatPercent !== null) {
-        inbodyData.afterBodyFatMass = record.bodyFatPercent;
+      if (record.bodyFatMass !== null) {
+        inbodyData.afterBodyFatMass = record.bodyFatMass;
       }
       if (record.imageUrl !== null) {
         inbodyData.afterImageUrl = record.imageUrl;
