@@ -263,6 +263,11 @@ export const adminApi = {
     return response.data;
   },
 
+  deleteParticipant: async (id: string) => {
+    const response = await api.delete<{ message: string }>(`/admin/participants/${id}`);
+    return response.data;
+  },
+
   recalculateRankings: async () => {
     try {
       const response = await api.post('/recalculate-ranking');

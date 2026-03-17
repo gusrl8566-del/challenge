@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Delete,
   Param,
   Body,
   UseGuards,
@@ -102,5 +103,10 @@ export class AdminController {
     @Body() dto: AdminUpdateScoresDto,
   ): Promise<Participant> {
     return this.adminService.updateParticipantScores(id, dto);
+  }
+
+  @Delete('participants/:id')
+  async deleteParticipant(@Param('id') id: string): Promise<{ message: string }> {
+    return this.adminService.deleteParticipantById(id);
   }
 }

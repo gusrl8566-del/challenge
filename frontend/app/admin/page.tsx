@@ -106,6 +106,7 @@ export default function AdminPage() {
     Record<string, { communicationScore: number; inspirationScore: number }>
   >({});
   const [savingParticipantId, setSavingParticipantId] = useState<string | null>(null);
+  const [deletingParticipantId, setDeletingParticipantId] = useState<string | null>(null);
   const [recalculating, setRecalculating] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [templateFile, setTemplateFile] = useState<File | null>(null);
@@ -465,6 +466,29 @@ export default function AdminPage() {
       setMessage('점수 저장에 실패했습니다.');
     } finally {
       setSavingParticipantId(null);
+    }
+  };
+
+  const handleDeleteParticipant = async (participantId: string, participantName: string) => {
+    const confirmed = window.confirm(`${participantName} 참가자를 삭제할까요? 이 작업은 되돌릴 수 없습니다.`);
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingParticipantId(participantId);
+      setMessage('');
+      setMessageStatus(null);
+      await adminApi.deleteParticipant(participantId);
+      await refreshData();
+      setMessageStatus('success');
+      setMessage('참가자를 삭제했습니다.');
+    } catch (error) {
+      console.error('참가자 삭제에 실패했습니다:', error);
+      setMessageStatus('error');
+      setMessage('참가자 삭제에 실패했습니다.');
+    } finally {
+      setDeletingParticipantId(null);
     }
   };
 
@@ -963,14 +987,24 @@ export default function AdminPage() {
                       {row.inbody?.submittedAt ? formatDate(row.inbody.submittedAt) : '-'}
                     </td>
                     <td className="px-3 py-3">
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateScores(row.participant.id)}
-                        disabled={savingParticipantId === row.participant.id}
-                        className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-                      >
-                        {savingParticipantId === row.participant.id ? '저장 중...' : '저장'}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateScores(row.participant.id)}
+                          disabled={savingParticipantId === row.participant.id || deletingParticipantId === row.participant.id}
+                          className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                        >
+                          {savingParticipantId === row.participant.id ? '저장 중...' : '저장'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteParticipant(row.participant.id, row.participant.name)}
+                          disabled={savingParticipantId === row.participant.id || deletingParticipantId === row.participant.id}
+                          className="rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {deletingParticipantId === row.participant.id ? '삭제 중...' : '삭제'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
