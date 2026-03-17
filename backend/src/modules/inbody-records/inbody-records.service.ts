@@ -6,14 +6,21 @@ import {
   OcrExtractedInbodyRecordDto,
 } from '../../dto/inbody-record.dto';
 import { InbodyRecord, InbodyRecordType } from '../../entities/inbody-record.entity';
+import { Participant, ParticipantRole } from '../../entities/participant.entity';
+import { InbodyData } from '../../entities/inbody-data.entity';
 import { OpenAiOcrService } from '../inbody-data/openai-ocr.service';
 import { ChallengeStatusService } from '../challenge-status/challenge-status.service';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class InbodyRecordsService {
   constructor(
     @InjectRepository(InbodyRecord)
     private readonly inbodyRecordsRepository: Repository<InbodyRecord>,
+    @InjectRepository(Participant)
+    private readonly participantsRepository: Repository<Participant>,
+    @InjectRepository(InbodyData)
+    private readonly inbodyDataRepository: Repository<InbodyData>,
     private readonly openAiOcrService: OpenAiOcrService,
     private readonly challengeStatusService: ChallengeStatusService,
   ) {}
@@ -34,6 +41,12 @@ export class InbodyRecordsService {
     await this.ensureChallengeOpen();
     const activeSeason = await this.challengeStatusService.getActiveSeasonOrDefault();
 
+    await this.syncParticipantForActiveSeason({
+      memberId: data.member_id,
+      name: data.name,
+      activeSeasonId: activeSeason.id,
+    });
+
     const existing = await this.inbodyRecordsRepository.findOne({
       where: {
         seasonId: activeSeason.id,
@@ -53,6 +66,56 @@ export class InbodyRecordsService {
     record.imageUrl = data.image_url ?? null;
 
     return this.inbodyRecordsRepository.save(record);
+  }
+
+  private async syncParticipantForActiveSeason(params: {
+    memberId: string;
+    name: string;
+    activeSeasonId: string;
+  }): Promise<void> {
+    const memberId = params.memberId.trim();
+    const name = params.name.trim();
+
+    let participant = await this.participantsRepository.findOne({
+      where: { phone: memberId },
+    });
+
+    if (!participant) {
+      const tempPassword = await bcrypt.hash(`ocr-${Date.now()}-${memberId}`, 10);
+      participant = this.participantsRepository.create({
+        email: null,
+        phone: memberId,
+        password: tempPassword,
+        name,
+        role: ParticipantRole.PARTICIPANT,
+        teamName: null,
+        isActive: true,
+        seasonId: params.activeSeasonId,
+      });
+      await this.participantsRepository.save(participant);
+      return;
+    }
+
+    const seasonChanged = participant.seasonId !== params.activeSeasonId;
+    let changed = false;
+
+    if (seasonChanged) {
+      participant.seasonId = params.activeSeasonId;
+      changed = true;
+    }
+
+    if (name && participant.name !== name) {
+      participant.name = name;
+      changed = true;
+    }
+
+    if (changed) {
+      await this.participantsRepository.save(participant);
+    }
+
+    if (seasonChanged) {
+      await this.inbodyDataRepository.delete({ participantId: participant.id });
+    }
   }
 
   private async ensureChallengeOpen(): Promise<void> {
