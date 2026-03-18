@@ -1,8 +1,8 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
-import { ImageProcessingService, INBODY_ROI_REGIONS } from './image-processing.service';
-import { InbodyOcrResult, INBODY_VALIDATION_RULES } from './ocr.types';
+import { ImageProcessingService } from './image-processing.service';
+import { InbodyOcrResult } from './ocr.types';
 
 @Injectable()
 export class OcrService {
@@ -24,32 +24,19 @@ export class OcrService {
   async extractInbodyData(imagePath: string): Promise<InbodyOcrResult> {
     this.logger.log(`Starting OCR extraction for: ${imagePath}`);
 
-    const croppedImages = await this.imageProcessingService.preprocessAndCropRoi(
-      imagePath,
-      INBODY_ROI_REGIONS,
-    );
+    const preprocessedImage = await this.imageProcessingService.preprocessImage(imagePath);
 
     let lastError: Error | null = null;
-    
+
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
-        const result = await this.performOcrExtraction(croppedImages, attempt);
-        
-        if (this.validateResult(result)) {
-          this.logger.log(`OCR successful on attempt ${attempt}`);
-          return {
-            ...result,
-            processedAt: new Date(),
-          };
-        }
-
-        this.logger.warn(`Attempt ${attempt}: Validation failed, retrying...`);
-        lastError = new Error('Validation failed: Invalid values');
-        
+        const result = await this.performOcrExtraction(preprocessedImage, attempt);
+        this.logger.log(`OCR successful on attempt ${attempt}`);
+        return result;
       } catch (error) {
         lastError = error as Error;
-        this.logger.error(`Attempt ${attempt} failed: ${error.message}`);
-        
+        this.logger.error(`Attempt ${attempt} failed: ${lastError.message}`);
+
         if (attempt < this.maxRetries) {
           await this.delay(1000 * attempt);
         }
@@ -67,7 +54,7 @@ export class OcrService {
     const buffer = Buffer.from(base64Data, 'base64');
 
     const tempPath = await this.imageProcessingService.saveTempImage(buffer, 'ocr-input');
-    
+
     try {
       return await this.extractInbodyData(tempPath);
     } finally {
@@ -76,130 +63,216 @@ export class OcrService {
   }
 
   private async performOcrExtraction(
-    croppedImages: { [key: string]: Buffer },
+    imageBuffer: Buffer,
     attempt: number,
-  ): Promise<Omit<InbodyOcrResult, 'processedAt'>> {
-    const prompt = this.buildOcrPrompt(attempt);
-
-    const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-      {
-        role: 'system',
-        content: `You are an expert at reading InBody medical analysis reports. 
-Extract the following values from the images:
-1. Weight (체중) - in kg
-2. Skeletal Muscle Mass (근육량) - in kg  
-3. Body Fat Mass (체지방량) - in kg
-
-Return ONLY a JSON object with exactly these fields:
-{"weight": number, "skeletalMuscleMass": number, "bodyFatMass": number, "confidence": number}
-
-confidence should be 0-1 based on how clearly you can read the values.
-
-If you cannot find a value, return null for that field.`,
-      },
-      {
-        role: 'user',
-        content: [
-          { type: 'text', text: prompt },
-          { type: 'image_url', image_url: { url: this.bufferToDataUrl(croppedImages.weight) } },
-          { type: 'image_url', image_url: { url: this.bufferToDataUrl(croppedImages.muscle) } },
-          { type: 'image_url', image_url: { url: this.bufferToDataUrl(croppedImages.bodyFat) } },
-        ],
-      },
-    ];
-
+  ): Promise<InbodyOcrResult> {
     const response = await this.openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages,
-      temperature: 0.1,
+      model: 'gpt-4.1',
+      temperature: 0,
       response_format: { type: 'json_object' },
-      max_tokens: 500,
+      max_tokens: 2000,
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an OCR extraction engine. Return only valid JSON.',
+        },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: this.buildOcrPrompt(attempt),
+            },
+            {
+              type: 'image_url',
+              image_url: { url: this.bufferToDataUrl(imageBuffer) },
+            },
+          ],
+        },
+      ],
     });
 
     const content = response.choices[0]?.message?.content;
     this.logger.debug(`OpenAI response: ${content}`);
 
+    if (!content) {
+      throw new Error('Empty response from OCR model');
+    }
+
     return this.parseOcrResponse(content);
   }
 
   private buildOcrPrompt(attempt: number): string {
-    if (attempt === 1) {
-      return `Extract the weight, skeletal muscle mass, and body fat mass values from these InBody report sections. 
-The first image contains Weight, second contains Skeletal Muscle Mass, third contains Body Fat Mass.`;
-    }
+    return `이 이미지는 인바디(InBody) 결과지다.
 
-    return `Retry ${attempt}: Previous extraction had issues. 
-Please be more careful to extract:
-- Weight from the first image (look for 체중 or Weight)
-- Skeletal Muscle Mass from the second image (look for 근육량 or SMM or Skeletal Muscle)
-- Body Fat Mass from the third image (look for 체지방량 or Body Fat)
+너의 역할:
+이미지에서 모든 텍스트와 숫자를 "있는 그대로" 추출하고,
+절대 해석하지 말고 구조적으로 정리하는 것이다.
 
-Return the exact numeric values in kg.`;
+[절대 규칙]
+1. 숫자는 절대 수정하거나 추측하지 말 것
+2. 잘 안 보이거나 확실하지 않은 값은 null 처리
+3. 단위(kg, %, cm, kcal)는 반드시 포함
+4. 텍스트를 요약하거나 의미 해석하지 말 것
+5. 표에 있는 값은 빠짐없이 포함할 것
+6. 같은 항목이 여러 번 나오면 모두 포함할 것
+7. 숫자/소수점/기호를 원본 그대로 유지할 것
+
+[출력 형식]
+- 반드시 JSON만 출력 (설명 금지)
+- 모든 키는 영어 snake_case 사용
+- 누락된 값은 빈 문자열이 아니라 null 사용
+- attempt: ${attempt}
+
+{
+  "basic_info": {
+    "id": "",
+    "age": "",
+    "gender": "",
+    "height_cm": "",
+    "date": "",
+    "time": ""
+  },
+  "body_composition": {
+    "total_body_water_kg": "",
+    "protein_kg": "",
+    "mineral_kg": "",
+    "body_fat_mass_kg": "",
+    "soft_lean_mass_kg": "",
+    "fat_free_mass_kg": ""
+  },
+  "muscle_fat_analysis": {
+    "weight_kg": "",
+    "skeletal_muscle_mass_kg": "",
+    "body_fat_mass_kg": ""
+  },
+  "obesity_analysis": {
+    "bmi": "",
+    "body_fat_percentage": ""
+  },
+  "segmental_lean": {
+    "left_arm_kg": "",
+    "right_arm_kg": "",
+    "trunk_kg": "",
+    "left_leg_kg": "",
+    "right_leg_kg": ""
+  },
+  "segmental_fat": {
+    "left_arm": "",
+    "right_arm": "",
+    "trunk": "",
+    "left_leg": "",
+    "right_leg": ""
+  },
+  "additional_metrics": {
+    "visceral_fat_level": "",
+    "waist_hip_ratio": "",
+    "fitness_score": "",
+    "bmr_kcal": ""
+  },
+  "weight_control": {
+    "target_weight_change_kg": "",
+    "fat_control_kg": "",
+    "muscle_control_kg": ""
+  }
+}`;
   }
 
   private bufferToDataUrl(buffer: Buffer): string {
     return `data:image/jpeg;base64,${buffer.toString('base64')}`;
   }
 
-  private parseOcrResponse(content: string): Omit<InbodyOcrResult, 'processedAt'> {
+  private parseOcrResponse(content: string): InbodyOcrResult {
     try {
       const parsed = JSON.parse(content);
-      
-      const result: Omit<InbodyOcrResult, 'processedAt'> = {
-        weight: this.extractNumber(parsed.weight),
-        skeletalMuscleMass: this.extractNumber(parsed.skeletalMuscleMass),
-        bodyFatMass: this.extractNumber(parsed.bodyFatMass),
-        confidence: Math.min(1, Math.max(0, parsed.confidence || 0.5)),
-        rawText: content,
-      };
 
-      return result;
+      return {
+        basic_info: this.normalizeSection(parsed.basic_info, [
+          'id',
+          'age',
+          'gender',
+          'height_cm',
+          'date',
+          'time',
+        ]),
+        body_composition: this.normalizeSection(parsed.body_composition, [
+          'total_body_water_kg',
+          'protein_kg',
+          'mineral_kg',
+          'body_fat_mass_kg',
+          'soft_lean_mass_kg',
+          'fat_free_mass_kg',
+        ]),
+        muscle_fat_analysis: this.normalizeSection(parsed.muscle_fat_analysis, [
+          'weight_kg',
+          'skeletal_muscle_mass_kg',
+          'body_fat_mass_kg',
+        ]),
+        obesity_analysis: this.normalizeSection(parsed.obesity_analysis, [
+          'bmi',
+          'body_fat_percentage',
+        ]),
+        segmental_lean: this.normalizeSection(parsed.segmental_lean, [
+          'left_arm_kg',
+          'right_arm_kg',
+          'trunk_kg',
+          'left_leg_kg',
+          'right_leg_kg',
+        ]),
+        segmental_fat: this.normalizeSection(parsed.segmental_fat, [
+          'left_arm',
+          'right_arm',
+          'trunk',
+          'left_leg',
+          'right_leg',
+        ]),
+        additional_metrics: this.normalizeSection(parsed.additional_metrics, [
+          'visceral_fat_level',
+          'waist_hip_ratio',
+          'fitness_score',
+          'bmr_kcal',
+        ]),
+        weight_control: this.normalizeSection(parsed.weight_control, [
+          'target_weight_change_kg',
+          'fat_control_kg',
+          'muscle_control_kg',
+        ]),
+      };
     } catch (error) {
-      this.logger.error(`Failed to parse OCR response: ${error.message}`);
+      const message = error instanceof Error ? error.message : 'Unknown parse error';
+      this.logger.error(`Failed to parse OCR response: ${message}`);
       throw new Error(`Invalid JSON response from OCR: ${content}`);
     }
   }
 
-  private extractNumber(value: any): number {
-    if (value === null || value === undefined) {
-      return 0;
+  private normalizeSection<T extends string>(
+    section: Record<string, unknown> | null | undefined,
+    keys: readonly T[],
+  ): Record<T, string | null> {
+    const normalized = {} as Record<T, string | null>;
+
+    for (const key of keys) {
+      normalized[key] = this.normalizeValue(section?.[key]);
     }
 
-    if (typeof value === 'number') {
-      return value;
+    return normalized;
+  }
+
+  private normalizeValue(value: unknown): string | null {
+    if (value === null || value === undefined) {
+      return null;
     }
 
     if (typeof value === 'string') {
-      const cleaned = value.replace(/[^\d.-]/g, '');
-      const parsed = parseFloat(cleaned);
-      return isNaN(parsed) ? 0 : parsed;
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : null;
     }
 
-    return 0;
-  }
-
-  private validateResult(result: Omit<InbodyOcrResult, 'processedAt'>): boolean {
-    const validations = [
-      { field: 'weight', value: result.weight, min: 20, max: 300 },
-      { field: 'skeletalMuscleMass', value: result.skeletalMuscleMass, min: 10, max: 150 },
-      { field: 'bodyFatMass', value: result.bodyFatMass, min: 1, max: 200 },
-    ];
-
-    for (const validation of validations) {
-      if (validation.value < validation.min || validation.value > validation.max) {
-        this.logger.warn(
-          `Validation failed: ${validation.field} = ${validation.value} (valid range: ${validation.min}-${validation.max})`,
-        );
-        return false;
-      }
-
-      if (result.confidence < 0.3) {
-        this.logger.warn(`Validation failed: Low confidence = ${result.confidence}`);
-        return false;
-      }
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      return String(value);
     }
 
-    return true;
+    return null;
   }
 
   private delay(ms: number): Promise<void> {
