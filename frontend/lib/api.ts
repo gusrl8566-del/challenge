@@ -231,6 +231,7 @@ export const inbodyRecordApi = {
     body_fat_mass: number;
     record_type: 'start' | 'end';
     image_url: string;
+    source?: 'ocr' | 'manual';
   }) => {
     const response = await api.post<ParticipantInbodyRecord>('/inbody-records', data);
     return response.data;

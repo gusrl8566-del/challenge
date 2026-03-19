@@ -2,6 +2,11 @@ import { Type } from 'class-transformer';
 import { IsString, IsNumber, IsOptional, IsEnum, Min, Max } from 'class-validator';
 import { InbodyRecordType } from '../entities/inbody-record.entity';
 
+export enum InbodyRecordInputSource {
+  OCR = 'ocr',
+  MANUAL = 'manual',
+}
+
 export class CreateInbodyRecordDto {
   @IsString()
   member_id: string;
@@ -36,6 +41,10 @@ export class CreateInbodyRecordDto {
   @IsOptional()
   @IsString()
   image_url?: string;
+
+  @IsOptional()
+  @IsEnum(InbodyRecordInputSource)
+  source?: InbodyRecordInputSource;
 }
 
 export class ExtractInbodyRecordFromImageDto {

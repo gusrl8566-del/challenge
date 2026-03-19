@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
@@ -14,6 +14,8 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class InbodyRecordsService {
+  private readonly logger = new Logger(InbodyRecordsService.name);
+
   constructor(
     @InjectRepository(InbodyRecord)
     private readonly inbodyRecordsRepository: Repository<InbodyRecord>,
@@ -29,6 +31,11 @@ export class InbodyRecordsService {
     await this.ensureChallengeOpen();
 
     const extracted = await this.openAiOcrService.parseParticipantRecordImage(imageUrl);
+
+    this.logger.log(
+      `OCR_EXTRACT_RESULT imageUrl=${imageUrl} memberId=${extracted.memberId ?? 'null'} weight=${extracted.weight ?? 'null'} skeletalMuscleMass=${extracted.skeletalMuscleMass ?? 'null'} bodyFatMass=${extracted.bodyFatMass ?? 'null'}`,
+    );
+
     return {
       member_id: extracted.memberId,
       weight: extracted.weight,
@@ -67,6 +74,10 @@ export class InbodyRecordsService {
 
     const savedRecord = await this.inbodyRecordsRepository.save(record);
     await this.syncInbodyDataFromRecord(participant.id, savedRecord);
+
+    this.logger.log(
+      `INBODY_SAVE_RESULT memberId=${savedRecord.memberId} recordType=${savedRecord.recordType} source=${data.source || 'unknown'} id=${savedRecord.id}`,
+    );
 
     return savedRecord;
   }

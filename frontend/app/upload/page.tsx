@@ -144,6 +144,7 @@ export default function UploadPage() {
         body_fat_mass: parsedBodyFatMass,
         record_type: recordType,
         image_url: imageUrl,
+        source: 'ocr',
       });
 
       setStep('submitted');
