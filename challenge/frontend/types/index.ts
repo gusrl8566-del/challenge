@@ -86,3 +86,11 @@ export interface ParticipantTableData {
   inspirationScore: number;
   uploadDate: string | null;
 }
+
+export interface InbodyOcrResult {
+  muscle_fat_analysis: {
+    weight_kg: string | null;
+    skeletal_muscle_mass_kg: string | null;
+    body_fat_mass_kg: string | null;
+  };
+}

@@ -1,6 +1,11 @@
 import { IsString, IsNumber, IsOptional, IsEnum, Min } from 'class-validator';
 import { InbodyPhase } from '../entities/inbody-record.entity';
 
+export enum InbodyInputSource {
+  OCR = 'ocr',
+  MANUAL = 'manual',
+}
+
 export class CreateInbodyRecordDto {
   @IsString()
   participantId: string;
@@ -26,6 +31,10 @@ export class CreateInbodyRecordDto {
   @IsOptional()
   @IsString()
   imageUrl?: string;
+
+  @IsOptional()
+  @IsEnum(InbodyInputSource)
+  source?: InbodyInputSource;
 }
 
 export class SubmitInbodyDto {
@@ -47,4 +56,8 @@ export class SubmitInbodyDto {
   @IsOptional()
   @IsString()
   imageUrl?: string;
+
+  @IsOptional()
+  @IsEnum(InbodyInputSource)
+  source?: InbodyInputSource;
 }

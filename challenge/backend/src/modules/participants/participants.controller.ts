@@ -1,6 +1,6 @@
-import { Controller, Post, Get, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Put, Body, Param } from '@nestjs/common';
 import { ParticipantsService } from './participants.service';
-import { CreateParticipantDto, LoginDto } from '../../dto/participant.dto';
+import { CreateParticipantDto, LoginDto, UpdateSponsorDto } from '../../dto/participant.dto';
 import { Participant } from '../../entities/participant.entity';
 
 @Controller('participants')
@@ -30,6 +30,16 @@ export class ParticipantsController {
   @Get(':id')
   async findOne(@Param('id') id: string): Promise<Omit<Participant, 'password'>> {
     const participant = await this.participantsService.findOne(id);
+    const { password, ...result } = participant;
+    return result;
+  }
+
+  @Put(':id/sponsor')
+  async updateSponsor(
+    @Param('id') id: string,
+    @Body() dto: UpdateSponsorDto,
+  ): Promise<Omit<Participant, 'password'>> {
+    const participant = await this.participantsService.updateSponsorName(id, dto.sponsorName);
     const { password, ...result } = participant;
     return result;
   }

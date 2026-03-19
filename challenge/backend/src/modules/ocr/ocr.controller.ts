@@ -7,6 +7,7 @@ import {
   HttpCode,
   HttpStatus,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { OcrService } from './ocr.service';
@@ -22,6 +23,8 @@ export class OcrInbodyBase64Dto {
 
 @Controller('ocr')
 export class OcrController {
+  private readonly logger = new Logger(OcrController.name);
+
   constructor(private readonly ocrService: OcrService) {}
 
   @Post('inbody')
@@ -39,7 +42,18 @@ export class OcrController {
       throw new BadRequestException('Invalid file type. Allowed: JPEG, PNG, WEBP');
     }
 
-    return this.ocrService.extractInbodyData(file.path);
+    this.logger.log(
+      `OCR_REQUEST_RECEIVED method=file name=${file.originalname} mime=${file.mimetype} size=${file.size}`,
+    );
+
+    const base64Image = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+    const result = await this.ocrService.extractInbodyDataFromBase64(base64Image);
+
+    this.logger.log(
+      `OCR_REQUEST_COMPLETED method=file weight=${result.muscle_fat_analysis.weight_kg ?? 'null'} skeletalMuscleMass=${result.muscle_fat_analysis.skeletal_muscle_mass_kg ?? 'null'} bodyFatMass=${result.muscle_fat_analysis.body_fat_mass_kg ?? 'null'}`,
+    );
+
+    return result;
   }
 
   @Post('inbody/url')
@@ -63,6 +77,11 @@ export class OcrController {
       throw new BadRequestException('Invalid base64 image format');
     }
 
-    return this.ocrService.extractInbodyDataFromBase64(dto.base64Image);
+    this.logger.log('OCR_REQUEST_RECEIVED method=base64');
+    const result = await this.ocrService.extractInbodyDataFromBase64(dto.base64Image);
+    this.logger.log(
+      `OCR_REQUEST_COMPLETED method=base64 weight=${result.muscle_fat_analysis.weight_kg ?? 'null'} skeletalMuscleMass=${result.muscle_fat_analysis.skeletal_muscle_mass_kg ?? 'null'} bodyFatMass=${result.muscle_fat_analysis.body_fat_mass_kg ?? 'null'}`,
+    );
+    return result;
   }
 }

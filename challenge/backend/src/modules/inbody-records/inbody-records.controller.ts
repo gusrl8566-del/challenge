@@ -1,10 +1,12 @@
-import { Controller, Post, Get, Body, Param } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Logger } from '@nestjs/common';
 import { InbodyRecordsService } from './inbody-records.service';
 import { CreateInbodyRecordDto } from '../../dto/inbody-record.dto';
 import { InbodyRecord } from '../../entities/inbody-record.entity';
 
 @Controller('inbody-records')
 export class InbodyRecordsController {
+  private readonly logger = new Logger(InbodyRecordsController.name);
+
   constructor(private readonly service: InbodyRecordsService) {}
 
   @Post(':participantId')
@@ -12,6 +14,10 @@ export class InbodyRecordsController {
     @Param('participantId') participantId: string,
     @Body() dto: CreateInbodyRecordDto,
   ): Promise<InbodyRecord> {
+    this.logger.log(
+      `INBODY_SUBMIT_RECEIVED participantId=${participantId} phase=${dto.phase} source=${dto.source || 'unknown'} weight=${dto.weight ?? 'null'} skeletalMuscleMass=${dto.skeletalMuscleMass ?? 'null'} bodyFatMass=${dto.bodyFatMass ?? 'null'}`,
+    );
+
     return this.service.create(participantId, dto);
   }
 

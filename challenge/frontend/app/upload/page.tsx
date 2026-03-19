@@ -1,7 +1,36 @@
 'use client';
 
 import { useState } from 'react';
-import { uploadsApi, inbodyApi, authApi } from '@/lib/api';
+import { uploadsApi, inbodyApi, authApi, participantsApi, ocrApi } from '@/lib/api';
+import { InbodyOcrResult } from '@/types';
+
+type BodyMetrics = {
+  weight: number;
+  skeletalMuscleMass: number;
+  bodyFatMass: number;
+};
+
+function parseOcrNumber(value: string | null | undefined): number {
+  if (!value) {
+    return 0;
+  }
+
+  const match = value.replace(/,/g, '.').match(/-?\d+(?:\.\d+)?/);
+  if (!match) {
+    return 0;
+  }
+
+  const parsed = Number.parseFloat(match[0]);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function extractBodyMetricsFromOcr(ocrResult: InbodyOcrResult): BodyMetrics {
+  return {
+    weight: parseOcrNumber(ocrResult?.muscle_fat_analysis?.weight_kg),
+    skeletalMuscleMass: parseOcrNumber(ocrResult?.muscle_fat_analysis?.skeletal_muscle_mass_kg),
+    bodyFatMass: parseOcrNumber(ocrResult?.muscle_fat_analysis?.body_fat_mass_kg),
+  };
+}
 
 export default function UploadPage() {
   const [step, setStep] = useState<'login' | 'upload'>('login');
@@ -42,32 +71,69 @@ export default function UploadPage() {
         return;
       }
 
-      let beforeUrl = '', afterUrl = '';
-      if (beforeFile) {
-        beforeUrl = (
-          await uploadsApi.uploadImage(beforeFile, {
-            participantId,
-            phase: 'before',
-            sponsorName: trimmedSponsorName,
-          })
-        ).url;
-      }
-      if (afterFile) {
-        afterUrl = (
-          await uploadsApi.uploadImage(afterFile, {
-            participantId,
-            phase: 'after',
-            sponsorName: trimmedSponsorName,
-          })
-        ).url;
+      if (!beforeFile || !afterFile) {
+        setMessage('Please upload both before and after InBody images.');
+        return;
       }
 
-      await inbodyApi.submit(participantId, { phase: 'before', ...beforeData, imageUrl: beforeUrl });
-      await inbodyApi.submit(participantId, { phase: 'after', ...afterData, imageUrl: afterUrl });
+      await participantsApi.updateSponsor(participantId, trimmedSponsorName);
+
+      const [beforeOcrResult, afterOcrResult] = await Promise.all([
+        ocrApi.parseInbodyFromImage(beforeFile),
+        ocrApi.parseInbodyFromImage(afterFile),
+      ]);
+
+      const parsedBeforeData = extractBodyMetricsFromOcr(beforeOcrResult);
+      const parsedAfterData = extractBodyMetricsFromOcr(afterOcrResult);
+
+      if (
+        parsedBeforeData.weight <= 0 ||
+        parsedBeforeData.skeletalMuscleMass <= 0 ||
+        parsedBeforeData.bodyFatMass <= 0 ||
+        parsedAfterData.weight <= 0 ||
+        parsedAfterData.skeletalMuscleMass <= 0 ||
+        parsedAfterData.bodyFatMass <= 0
+      ) {
+        setMessage('OCR parsing failed. Please retry with clearer image.');
+        return;
+      }
+
+      setBeforeData(parsedBeforeData);
+      setAfterData(parsedAfterData);
+
+      let beforeUrl = '', afterUrl = '';
+      beforeUrl = (
+        await uploadsApi.uploadImage(beforeFile, {
+          participantId,
+          phase: 'before',
+          sponsorName: trimmedSponsorName,
+        })
+      ).url;
+      afterUrl = (
+        await uploadsApi.uploadImage(afterFile, {
+          participantId,
+          phase: 'after',
+          sponsorName: trimmedSponsorName,
+        })
+      ).url;
+
+      await inbodyApi.submit(participantId, {
+        phase: 'before',
+        ...parsedBeforeData,
+        imageUrl: beforeUrl,
+        source: 'ocr',
+      });
+      await inbodyApi.submit(participantId, {
+        phase: 'after',
+        ...parsedAfterData,
+        imageUrl: afterUrl,
+        source: 'ocr',
+      });
 
       setMessage('InBody data submitted successfully!');
-    } catch {
-      setMessage('Failed to submit data. Please try again.');
+    } catch (error) {
+      console.error(error);
+      setMessage('Failed to submit data. Please verify OCR endpoint and try again.');
     } finally {
       setLoading(false);
     }

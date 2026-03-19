@@ -1,5 +1,12 @@
 import axios from 'axios';
-import { Participant, ParticipantWithRecords, InbodyRecord, RankingEntry, Score } from '@/types';
+import {
+  Participant,
+  ParticipantWithRecords,
+  InbodyRecord,
+  RankingEntry,
+  Score,
+  InbodyOcrResult,
+} from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.megaworld.store';
 
@@ -27,8 +34,27 @@ export const authApi = {
   },
 };
 
+export const participantsApi = {
+  updateSponsor: async (participantId: string, sponsorName: string) => {
+    const res = await api.put<Participant>(`/participants/${participantId}/sponsor`, {
+      sponsorName,
+    });
+    return res.data;
+  },
+};
+
 export const inbodyApi = {
-  submit: async (participantId: string, data: { phase: string; weight: number; skeletalMuscleMass: number; bodyFatMass: number; imageUrl?: string }) => {
+  submit: async (
+    participantId: string,
+    data: {
+      phase: string;
+      weight: number;
+      skeletalMuscleMass: number;
+      bodyFatMass: number;
+      imageUrl?: string;
+      source?: 'ocr' | 'manual';
+    },
+  ) => {
     const res = await api.post<InbodyRecord>(`/inbody-records/${participantId}`, data);
     return res.data;
   },
@@ -87,6 +113,17 @@ export const uploadsApi = {
       phase: string;
       sponsorName: string;
     }>('/uploads/image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data;
+  },
+};
+
+export const ocrApi = {
+  parseInbodyFromImage: async (file: File) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    const res = await api.post<InbodyOcrResult>('/ocr/inbody', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return res.data;

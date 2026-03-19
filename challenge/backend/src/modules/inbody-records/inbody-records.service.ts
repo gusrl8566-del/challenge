@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { InbodyRecord, InbodyPhase } from '../../entities/inbody-record.entity';
@@ -6,6 +6,8 @@ import { CreateInbodyRecordDto } from '../../dto/inbody-record.dto';
 
 @Injectable()
 export class InbodyRecordsService {
+  private readonly logger = new Logger(InbodyRecordsService.name);
+
   constructor(
     @InjectRepository(InbodyRecord)
     private recordsRepository: Repository<InbodyRecord>,
@@ -23,6 +25,10 @@ export class InbodyRecordsService {
         bodyFatMass: dto.bodyFatMass,
         imageUrl: dto.imageUrl,
       });
+
+      this.logger.log(
+        `INBODY_RECORD_UPDATED participantId=${participantId} phase=${dto.phase} source=${dto.source || 'unknown'}`,
+      );
       return this.recordsRepository.save(existing);
     }
 
@@ -34,6 +40,10 @@ export class InbodyRecordsService {
       bodyFatMass: dto.bodyFatMass,
       imageUrl: dto.imageUrl,
     });
+
+    this.logger.log(
+      `INBODY_RECORD_CREATED participantId=${participantId} phase=${dto.phase} source=${dto.source || 'unknown'}`,
+    );
 
     return this.recordsRepository.save(record);
   }
