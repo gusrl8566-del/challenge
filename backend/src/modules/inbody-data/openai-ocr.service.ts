@@ -1257,12 +1257,34 @@ export class OpenAiOcrService {
   private sanitizeParticipantResult(result: ParticipantRecordResponse): ParticipantOcrResult {
     const memberId = this.sanitizeMemberId(result.memberId);
 
-    return {
+    const sanitized: ParticipantOcrResult = {
       memberId,
       weight: this.sanitizeParticipantNumber(result.weight, 30, 300),
       skeletalMuscleMass: this.sanitizeParticipantNumber(result.skeletalMuscleMass, 10, 100),
       bodyFatMass: this.sanitizeParticipantNumber(result.bodyFatMass, 5, 60),
     };
+
+    this.applyParticipantMetricConsistencyRules(sanitized);
+
+    return sanitized;
+  }
+
+  private applyParticipantMetricConsistencyRules(result: ParticipantOcrResult): void {
+    if (
+      result.weight !== null &&
+      result.skeletalMuscleMass !== null &&
+      result.skeletalMuscleMass > result.weight * 0.6
+    ) {
+      result.skeletalMuscleMass = null;
+    }
+
+    if (
+      result.weight !== null &&
+      result.bodyFatMass !== null &&
+      result.bodyFatMass > result.weight * 0.8
+    ) {
+      result.bodyFatMass = null;
+    }
   }
 
   private sanitizeMemberId(memberId: string | null): string | null {
