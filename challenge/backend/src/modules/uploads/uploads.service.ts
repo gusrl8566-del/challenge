@@ -8,6 +8,19 @@ export interface UploadedFile {
   mimetype: string;
   size: number;
   url: string;
+  participantId?: string;
+  phase?: string;
+  sponsorName?: string;
+}
+
+export function resolveUploadDir(): string {
+  const configuredDir = process.env.UPLOAD_DIR;
+
+  if (!configuredDir || configuredDir === '/uploads') {
+    return path.join(process.cwd(), 'uploads');
+  }
+
+  return configuredDir;
 }
 
 @Injectable()
@@ -18,7 +31,7 @@ export class UploadsService {
   private readonly maxFileSize = 10 * 1024 * 1024; // 10MB
 
   constructor() {
-    this.uploadDir = process.env.UPLOAD_DIR || './uploads';
+    this.uploadDir = resolveUploadDir();
     this.ensureDirectoryExists();
   }
 

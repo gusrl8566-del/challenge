@@ -1,9 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Participant } from '../../entities/participant.entity';
 import { Score } from '../../entities/score.entity';
 import { UpdateScoreDto } from '../../dto/score.dto';
+import { UpdateSponsorDto } from '../../dto/participant.dto';
 
 @Injectable()
 export class AdminService {
@@ -51,5 +52,24 @@ export class AdminService {
     }
 
     return this.scoresRepo.save(score);
+  }
+
+  async updateSponsor(participantId: string, dto: UpdateSponsorDto): Promise<Participant> {
+    const normalizedSponsorName = dto.sponsorName.trim();
+    if (!normalizedSponsorName) {
+      throw new BadRequestException('Sponsor name is required');
+    }
+
+    const participant = await this.participantsRepo.findOne({
+      where: { id: participantId },
+      relations: ['inbodyRecords', 'score'],
+    });
+
+    if (!participant) {
+      throw new NotFoundException('Participant not found');
+    }
+
+    participant.sponsorName = normalizedSponsorName;
+    return this.participantsRepo.save(participant);
   }
 }

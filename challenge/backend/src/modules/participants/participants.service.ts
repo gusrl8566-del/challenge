@@ -1,4 +1,10 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Participant } from '../../entities/participant.entity';
@@ -27,6 +33,7 @@ export class ParticipantsService {
       name: createDto.name,
       phone: createDto.phone,
       password: hashedPassword,
+      sponsorName: null,
     });
 
     return this.participantsRepository.save(participant);
@@ -52,20 +59,44 @@ export class ParticipantsService {
 
   async findAll(): Promise<Participant[]> {
     return this.participantsRepository.find({
-      select: ['id', 'name', 'phone', 'isActive', 'createdAt'],
+      select: ['id', 'name', 'phone', 'isActive', 'sponsorName', 'createdAt'],
     });
   }
 
   async findOne(id: string): Promise<Participant> {
-    return this.participantsRepository.findOne({
+    const participant = await this.participantsRepository.findOne({
       where: { id },
       relations: ['inbodyRecords', 'score'],
     });
+
+    if (!participant) {
+      throw new NotFoundException('Participant not found');
+    }
+
+    return participant;
   }
 
   async findByPhone(phone: string): Promise<Participant | null> {
     return this.participantsRepository.findOne({
       where: { phone },
     });
+  }
+
+  async updateSponsorName(participantId: string, sponsorName: string): Promise<Participant> {
+    const normalizedSponsorName = sponsorName.trim();
+    if (!normalizedSponsorName) {
+      throw new BadRequestException('Sponsor name is required');
+    }
+
+    const participant = await this.participantsRepository.findOne({
+      where: { id: participantId },
+    });
+
+    if (!participant) {
+      throw new NotFoundException('Participant not found');
+    }
+
+    participant.sponsorName = normalizedSponsorName;
+    return this.participantsRepository.save(participant);
   }
 }

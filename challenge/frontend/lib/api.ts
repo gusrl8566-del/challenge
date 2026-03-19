@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Participant, InbodyRecord, RankingEntry, Score } from '@/types';
+import { Participant, ParticipantWithRecords, InbodyRecord, RankingEntry, Score } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.megaworld.store';
 
@@ -70,10 +70,23 @@ export const rankingsApi = {
 };
 
 export const uploadsApi = {
-  uploadImage: async (file: File) => {
+  uploadImage: async (
+    file: File,
+    data: { participantId: string; phase: 'before' | 'after'; sponsorName: string },
+  ) => {
     const formData = new FormData();
     formData.append('image', file);
-    const res = await api.post<{ filename: string; url: string }>('/uploads/image', formData, {
+    formData.append('participantId', data.participantId);
+    formData.append('phase', data.phase);
+    formData.append('sponsorName', data.sponsorName);
+
+    const res = await api.post<{
+      filename: string;
+      url: string;
+      participantId: string;
+      phase: string;
+      sponsorName: string;
+    }>('/uploads/image', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return res.data;
@@ -86,7 +99,13 @@ export const adminApi = {
     return res.data;
   },
   getAllParticipants: async () => {
-    const res = await api.get<Participant[]>('/admin/participants');
+    const res = await api.get<ParticipantWithRecords[]>('/admin/participants');
+    return res.data;
+  },
+  updateSponsor: async (participantId: string, sponsorName: string) => {
+    const res = await api.put<Participant>(`/admin/participants/${participantId}/sponsor`, {
+      sponsorName,
+    });
     return res.data;
   },
 };

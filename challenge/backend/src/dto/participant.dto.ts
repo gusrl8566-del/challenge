@@ -1,4 +1,4 @@
-import { IsString, IsPhoneNumber, MinLength, IsOptional } from 'class-validator';
+import { IsString, IsPhoneNumber, MinLength, IsOptional, MaxLength } from 'class-validator';
 
 export class CreateParticipantDto {
   @IsString()
@@ -18,4 +18,10 @@ export class LoginDto {
 
   @IsString()
   password: string;
+}
+
+export class UpdateSponsorDto {
+  @IsString()
+  @MaxLength(255)
+  sponsorName: string;
 }

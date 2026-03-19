@@ -27,6 +27,9 @@ export class Participant {
   @Column({ default: true })
   isActive: boolean;
 
+  @Column({ name: 'sponsor_name', type: 'varchar', length: 255, nullable: true })
+  sponsorName: string | null;
+
   @OneToMany(() => InbodyRecord, (record) => record.participant)
   inbodyRecords: InbodyRecord[];
 

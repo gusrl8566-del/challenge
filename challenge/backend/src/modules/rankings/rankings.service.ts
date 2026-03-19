@@ -47,6 +47,12 @@ export interface AllRankings {
   inspirationKing: ScoreEntry[];
 }
 
+interface RankingCandidate {
+  participant: Participant;
+  before: InbodyRecord;
+  after: InbodyRecord;
+}
+
 @Injectable()
 export class RankingsService {
   private readonly logger = new Logger(RankingsService.name);
@@ -98,43 +104,9 @@ export class RankingsService {
     const afterMap = new Map(afterRecords.map((r) => [r.participantId, r]));
 
     const rankings: RankingEntry[] = records
-      .filter((before) => before.weight && before.skeletalMuscleMass && before.bodyFatMass)
-      .map((before) => {
-        const after = afterMap.get(before.participantId);
-        
-        if (!after || !after.weight || !after.skeletalMuscleMass || !after.bodyFatMass) {
-          return null;
-        }
-
-        const muscleGain = Number(after.skeletalMuscleMass) - Number(before.skeletalMuscleMass);
-        const fatLoss = Number(before.bodyFatMass) - Number(after.bodyFatMass);
-
-        return {
-          rank: 0,
-          participant: {
-            id: before.participant.id,
-            name: before.participant.name,
-            phone: before.participant.phone,
-          },
-          before: {
-            weight: Number(before.weight),
-            skeletalMuscleMass: Number(before.skeletalMuscleMass),
-            bodyFatMass: Number(before.bodyFatMass),
-          },
-          after: {
-            weight: Number(after.weight),
-            skeletalMuscleMass: Number(after.skeletalMuscleMass),
-            bodyFatMass: Number(after.bodyFatMass),
-          },
-          metrics: {
-            weightChange: Number(after.weight) - Number(before.weight),
-            muscleGain,
-            fatLoss,
-            totalScore: 0,
-          },
-        };
-      })
-      .filter((r): r is RankingEntry => r !== null)
+      .map((before) => this.toRankingCandidate(before, afterMap.get(before.participantId)))
+      .filter(this.isRankingCandidate)
+      .map((candidate) => this.buildRankingEntry(candidate))
       .sort((a, b) => {
         if (b.metrics.muscleGain !== a.metrics.muscleGain) {
           return b.metrics.muscleGain - a.metrics.muscleGain;
@@ -175,43 +147,9 @@ export class RankingsService {
     const afterMap = new Map(afterRecords.map((r) => [r.participantId, r]));
 
     const rankings: RankingEntry[] = records
-      .filter((before) => before.weight && before.skeletalMuscleMass && before.bodyFatMass)
-      .map((before) => {
-        const after = afterMap.get(before.participantId);
-        
-        if (!after || !after.weight || !after.skeletalMuscleMass || !after.bodyFatMass) {
-          return null;
-        }
-
-        const muscleGain = Number(after.skeletalMuscleMass) - Number(before.skeletalMuscleMass);
-        const fatLoss = Number(before.bodyFatMass) - Number(after.bodyFatMass);
-
-        return {
-          rank: 0,
-          participant: {
-            id: before.participant.id,
-            name: before.participant.name,
-            phone: before.participant.phone,
-          },
-          before: {
-            weight: Number(before.weight),
-            skeletalMuscleMass: Number(before.skeletalMuscleMass),
-            bodyFatMass: Number(before.bodyFatMass),
-          },
-          after: {
-            weight: Number(after.weight),
-            skeletalMuscleMass: Number(after.skeletalMuscleMass),
-            bodyFatMass: Number(after.bodyFatMass),
-          },
-          metrics: {
-            weightChange: Number(after.weight) - Number(before.weight),
-            muscleGain,
-            fatLoss,
-            totalScore: 0,
-          },
-        };
-      })
-      .filter((r): r is RankingEntry => r !== null)
+      .map((before) => this.toRankingCandidate(before, afterMap.get(before.participantId)))
+      .filter(this.isRankingCandidate)
+      .map((candidate) => this.buildRankingEntry(candidate))
       .sort((a, b) => {
         if (b.metrics.fatLoss !== a.metrics.fatLoss) {
           return b.metrics.fatLoss - a.metrics.fatLoss;
@@ -289,6 +227,71 @@ export class RankingsService {
       lossKing: lossKingEntry
         ? { rank: lossKingEntry.rank, totalScore: lossKingEntry.metrics.totalScore }
         : null,
+    };
+  }
+
+  private toRankingCandidate(
+    before: InbodyRecord,
+    after: InbodyRecord | undefined,
+  ): RankingCandidate | null {
+    if (!after) {
+      return null;
+    }
+
+    if (!this.hasCompleteMetrics(before) || !this.hasCompleteMetrics(after) || !before.participant) {
+      return null;
+    }
+
+    return {
+      participant: before.participant,
+      before,
+      after,
+    };
+  }
+
+  private isRankingCandidate(candidate: RankingCandidate | null): candidate is RankingCandidate {
+    return candidate !== null;
+  }
+
+  private hasCompleteMetrics(record: InbodyRecord): boolean {
+    return (
+      record.weight !== null &&
+      record.weight !== undefined &&
+      record.skeletalMuscleMass !== null &&
+      record.skeletalMuscleMass !== undefined &&
+      record.bodyFatMass !== null &&
+      record.bodyFatMass !== undefined
+    );
+  }
+
+  private buildRankingEntry(candidate: RankingCandidate): RankingEntry {
+    const { participant, before, after } = candidate;
+    const muscleGain = Number(after.skeletalMuscleMass) - Number(before.skeletalMuscleMass);
+    const fatLoss = Number(before.bodyFatMass) - Number(after.bodyFatMass);
+
+    return {
+      rank: 0,
+      participant: {
+        id: participant.id,
+        name: participant.name,
+        phone: participant.phone,
+      },
+      before: {
+        weight: Number(before.weight),
+        skeletalMuscleMass: Number(before.skeletalMuscleMass),
+        bodyFatMass: Number(before.bodyFatMass),
+      },
+      after: {
+        weight: Number(after.weight),
+        skeletalMuscleMass: Number(after.skeletalMuscleMass),
+        bodyFatMass: Number(after.bodyFatMass),
+      },
+      metrics: {
+        weightChange: Number(after.weight) - Number(before.weight),
+        muscleGain,
+        fatLoss,
+        totalScore: 0,
+      },
     };
   }
 }

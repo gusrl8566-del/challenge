@@ -6,6 +6,7 @@ import { uploadsApi, inbodyApi, authApi } from '@/lib/api';
 export default function UploadPage() {
   const [step, setStep] = useState<'login' | 'upload'>('login');
   const [participantId, setParticipantId] = useState('');
+  const [sponsorName, setSponsorName] = useState('');
   const [beforeFile, setBeforeFile] = useState<File | null>(null);
   const [afterFile, setAfterFile] = useState<File | null>(null);
   const [beforeData, setBeforeData] = useState({ weight: 0, skeletalMuscleMass: 0, bodyFatMass: 0 });
@@ -22,6 +23,7 @@ export default function UploadPage() {
         password: formData.get('password') as string,
       });
       setParticipantId(participant.id);
+      setSponsorName(participant.sponsorName || '');
       setStep('upload');
     } catch {
       setMessage('Login failed. Please check your phone and password.');
@@ -34,9 +36,31 @@ export default function UploadPage() {
     setMessage('');
 
     try {
+      const trimmedSponsorName = sponsorName.trim();
+      if (!trimmedSponsorName) {
+        setMessage('Please enter a sponsor name.');
+        return;
+      }
+
       let beforeUrl = '', afterUrl = '';
-      if (beforeFile) beforeUrl = (await uploadsApi.uploadImage(beforeFile)).url;
-      if (afterFile) afterUrl = (await uploadsApi.uploadImage(afterFile)).url;
+      if (beforeFile) {
+        beforeUrl = (
+          await uploadsApi.uploadImage(beforeFile, {
+            participantId,
+            phase: 'before',
+            sponsorName: trimmedSponsorName,
+          })
+        ).url;
+      }
+      if (afterFile) {
+        afterUrl = (
+          await uploadsApi.uploadImage(afterFile, {
+            participantId,
+            phase: 'after',
+            sponsorName: trimmedSponsorName,
+          })
+        ).url;
+      }
 
       await inbodyApi.submit(participantId, { phase: 'before', ...beforeData, imageUrl: beforeUrl });
       await inbodyApi.submit(participantId, { phase: 'after', ...afterData, imageUrl: afterUrl });
@@ -75,6 +99,18 @@ export default function UploadPage() {
     <div className="container mx-auto px-4 py-12">
       <h1 className="text-2xl font-bold text-center mb-8">Upload Your InBody Data</h1>
       <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-8">
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Sponsor Name</label>
+          <input
+            type="text"
+            value={sponsorName}
+            onChange={(e) => setSponsorName(e.target.value)}
+            className="w-full px-4 py-2 border rounded-lg"
+            placeholder="Enter sponsor name"
+            required
+          />
+        </div>
+
         <div className="bg-white rounded-xl shadow-lg p-6">
           <h2 className="text-xl font-semibold mb-4">Before InBody</h2>
           <div className="space-y-4">

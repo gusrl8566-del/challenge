@@ -6,8 +6,16 @@ export enum InbodyPhase {
 }
 
 export class UploadInbodyImageDto {
+  @IsString()
+  @MaxLength(255)
+  participantId: string;
+
   @IsEnum(InbodyPhase)
   phase: InbodyPhase;
+
+  @IsString()
+  @MaxLength(255)
+  sponsorName: string;
 
   @IsOptional()
   @IsString()
@@ -16,8 +24,16 @@ export class UploadInbodyImageDto {
 }
 
 export class UploadMultipleImagesDto {
+  @IsString()
+  @MaxLength(255)
+  participantId: string;
+
   @IsEnum(InbodyPhase)
   phase: InbodyPhase;
+
+  @IsString()
+  @MaxLength(255)
+  sponsorName: string;
 
   @IsOptional()
   @IsString()

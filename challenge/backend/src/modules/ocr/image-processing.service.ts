@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import * as sharp from 'sharp';
+import sharp from 'sharp';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ImageProcessingOptions } from './ocr.types';
@@ -125,8 +125,8 @@ export class ImageProcessingService {
     const match = base64.match(/^data:image\/\w+;base64,/);
     if (!match) return null;
 
-    const base64Data = base64.replace(match, '');
-    const buffer = Buffer.from(base64Data, 'base64');
+    const base64Data = base64.replace(/^data:image\/\w+;base64,/, '');
+    void Buffer.from(base64Data, 'base64');
     
     return null;
   }

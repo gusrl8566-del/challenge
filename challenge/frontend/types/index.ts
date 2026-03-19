@@ -2,6 +2,7 @@ export interface Participant {
   id: string;
   name: string;
   phone: string;
+  sponsorName?: string | null;
   isActive: boolean;
   createdAt: string;
 }
