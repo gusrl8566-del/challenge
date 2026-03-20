@@ -57,6 +57,7 @@ export default function AdminParticipantDetailPage() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [participantName, setParticipantName] = useState('');
   const [sponsorName, setSponsorName] = useState('');
   const [message, setMessage] = useState('');
   const [messageStatus, setMessageStatus] = useState<'success' | 'error' | null>(null);
@@ -97,6 +98,7 @@ export default function AdminParticipantDetailPage() {
           ...participantData,
           inbodyData: data,
         });
+        setParticipantName(participantData.name || '');
         setSponsorName(participantData.sponsorName || '');
 
         setForm({
@@ -165,6 +167,12 @@ export default function AdminParticipantDetailPage() {
       return;
     }
 
+    if (!participantName.trim()) {
+      setMessageStatus('error');
+      setMessage('참가자명을 입력해 주세요.');
+      return;
+    }
+
     try {
       setSaving(true);
       setMessage('');
@@ -183,7 +191,10 @@ export default function AdminParticipantDetailPage() {
         },
       });
 
-      await adminApi.updateSponsor(participantId, sponsorName.trim());
+      await adminApi.updateProfile(participantId, {
+        name: participantName.trim(),
+        sponsorName: sponsorName.trim(),
+      });
 
       const refreshed = await inbodyApi.getByParticipant(participantId);
       const refreshedParticipant = await adminApi.getParticipant(participantId);
@@ -195,6 +206,7 @@ export default function AdminParticipantDetailPage() {
 
         return {
           ...prev,
+          name: refreshedParticipant.name,
           sponsorName: refreshedParticipant.sponsorName,
           inbodyData: refreshed,
         };
@@ -324,6 +336,19 @@ export default function AdminParticipantDetailPage() {
         onSubmit={handleSubmit}
         className="grid gap-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:grid-cols-2"
       >
+        <div className="lg:col-span-2">
+          <label className="block">
+            <span className="mb-1 block text-sm text-slate-600">참가자명</span>
+            <input
+              type="text"
+              value={participantName}
+              onChange={(event) => setParticipantName(event.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2"
+              required
+            />
+          </label>
+        </div>
+
         <div className="lg:col-span-2">
           <label className="block">
             <span className="mb-1 block text-sm text-slate-600">스폰서명</span>

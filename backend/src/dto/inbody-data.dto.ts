@@ -115,3 +115,13 @@ export class AdminUpdateSponsorDto {
   @IsNotEmpty()
   sponsorName: string;
 }
+
+export class AdminUpdateParticipantProfileDto {
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @IsString()
+  @IsNotEmpty()
+  sponsorName: string;
+}

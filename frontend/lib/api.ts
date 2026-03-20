@@ -272,6 +272,11 @@ export const adminApi = {
     return response.data;
   },
 
+  updateProfile: async (participantId: string, data: { name: string; sponsorName: string }) => {
+    const response = await api.put<Participant>(`/admin/participants/${participantId}/profile`, data);
+    return response.data;
+  },
+
   deleteParticipant: async (id: string) => {
     const response = await api.delete<{ message: string }>(`/admin/participants/${id}`);
     return response.data;

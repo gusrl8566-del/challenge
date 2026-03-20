@@ -10,7 +10,11 @@ import {
   Query,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
-import { AdminUpdateScoresDto, AdminUpdateSponsorDto } from '../../dto/inbody-data.dto';
+import {
+  AdminUpdateScoresDto,
+  AdminUpdateSponsorDto,
+  AdminUpdateParticipantProfileDto,
+} from '../../dto/inbody-data.dto';
 import { Participant } from '../../entities/participant.entity';
 import { AdminJwtAuthGuard } from '../auth/guards/admin-jwt-auth.guard';
 import { ChallengeSeason } from '../../entities/challenge-season.entity';
@@ -111,6 +115,14 @@ export class AdminController {
     @Body() dto: AdminUpdateSponsorDto,
   ): Promise<Participant> {
     return this.adminService.updateParticipantSponsor(id, dto);
+  }
+
+  @Put('participants/:id/profile')
+  async updateProfile(
+    @Param('id') id: string,
+    @Body() dto: AdminUpdateParticipantProfileDto,
+  ): Promise<Participant> {
+    return this.adminService.updateParticipantProfile(id, dto);
   }
 
   @Delete('participants/:id')
