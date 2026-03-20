@@ -37,6 +37,9 @@ export class Participant {
   @Column({ type: 'varchar', length: 100, nullable: true })
   teamName: string | null;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  sponsorName: string | null;
+
   @Column({ type: 'varchar', nullable: true })
   seasonId: string | null;
 

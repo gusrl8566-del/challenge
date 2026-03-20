@@ -24,7 +24,7 @@ export class InbodyRecordsController {
   @Post()
   async createOrUpdate(@Body() body: CreateInbodyRecordDto): Promise<InbodyRecord> {
     this.logger.log(
-      `INBODY_SAVE_REQUEST memberId=${body.member_id} recordType=${body.record_type} source=${body.source || 'unknown'} imageUrl=${body.image_url || 'none'} weight=${body.weight ?? 'null'} skeletalMuscleMass=${body.skeletal_muscle_mass ?? 'null'} bodyFatMass=${body.body_fat_mass ?? 'null'}`,
+      `INBODY_SAVE_REQUEST memberId=${body.member_id} sponsorName=${body.sponsor_name} recordType=${body.record_type} source=${body.source || 'unknown'} imageUrl=${body.image_url || 'none'} weight=${body.weight ?? 'null'} skeletalMuscleMass=${body.skeletal_muscle_mass ?? 'null'} bodyFatMass=${body.body_fat_mass ?? 'null'}`,
     );
     return this.inbodyRecordsService.createOrUpdate(body);
   }

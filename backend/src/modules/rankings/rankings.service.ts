@@ -10,6 +10,7 @@ export interface RankingEntry {
   participant: {
     id: string;
     name: string;
+    sponsorName: string | null;
     teamName: string | null;
     communicationScore: number;
     inspirationScore: number;
@@ -110,6 +111,7 @@ export class RankingsService {
       participant: {
         id: data.participant.id,
         name: data.participant.name,
+        sponsorName: data.participant.sponsorName,
         teamName: data.participant.teamName,
         communicationScore: data.participant.communicationScore || 0,
         inspirationScore: data.participant.inspirationScore || 0,
@@ -192,6 +194,7 @@ export class RankingsService {
         participant: {
           id: participant.id,
           name: participant.name,
+          sponsorName: participant.sponsorName,
           teamName: participant.teamName,
           communicationScore: participant.communicationScore || 0,
           inspirationScore: participant.inspirationScore || 0,
@@ -220,6 +223,7 @@ export class RankingsService {
         participant: {
           id: participant.id,
           name: participant.name,
+          sponsorName: participant.sponsorName,
           teamName: participant.teamName,
           communicationScore: participant.communicationScore || 0,
           inspirationScore: participant.inspirationScore || 0,

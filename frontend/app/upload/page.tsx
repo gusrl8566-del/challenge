@@ -20,6 +20,7 @@ export default function UploadPage() {
   const [imageUrl, setImageUrl] = useState('');
   const [memberId, setMemberId] = useState('');
   const [name, setName] = useState('');
+  const [sponsorName, setSponsorName] = useState('');
   const [weight, setWeight] = useState('');
   const [skeletalMuscleMass, setSkeletalMuscleMass] = useState('');
   const [bodyFatMass, setBodyFatMass] = useState('');
@@ -125,6 +126,12 @@ export default function UploadPage() {
       return;
     }
 
+    if (!sponsorName.trim()) {
+      setMessage('스폰서명을 입력해주세요.');
+      setMessageStatus('error');
+      return;
+    }
+
     if (
       !Number.isFinite(parsedWeight) ||
       !Number.isFinite(parsedSkeletalMuscleMass) ||
@@ -136,11 +143,12 @@ export default function UploadPage() {
     }
 
     try {
-      await inbodyRecordApi.saveRecord({
-        member_id: memberId.trim(),
-        name: name.trim(),
-        weight: parsedWeight,
-        skeletal_muscle_mass: parsedSkeletalMuscleMass,
+        await inbodyRecordApi.saveRecord({
+          member_id: memberId.trim(),
+          name: name.trim(),
+          sponsor_name: sponsorName.trim(),
+          weight: parsedWeight,
+          skeletal_muscle_mass: parsedSkeletalMuscleMass,
         body_fat_mass: parsedBodyFatMass,
         record_type: recordType,
         image_url: imageUrl,
@@ -162,6 +170,7 @@ export default function UploadPage() {
     setImageUrl('');
     setMemberId('');
     setName('');
+    setSponsorName('');
     setWeight('');
     setSkeletalMuscleMass('');
     setBodyFatMass('');
@@ -306,6 +315,17 @@ export default function UploadPage() {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                className="h-[64px] w-full rounded-xl border border-slate-300 px-4 text-[22px]"
+                required
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-2 block text-xl font-medium text-slate-900">스폰서명</span>
+              <input
+                type="text"
+                value={sponsorName}
+                onChange={(e) => setSponsorName(e.target.value)}
                 className="h-[64px] w-full rounded-xl border border-slate-300 px-4 text-[22px]"
                 required
               />

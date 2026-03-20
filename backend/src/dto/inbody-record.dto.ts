@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsString, IsNumber, IsOptional, IsEnum, Min, Max } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsEnum, Min, Max, IsNotEmpty } from 'class-validator';
 import { InbodyRecordType } from '../entities/inbody-record.entity';
 
 export enum InbodyRecordInputSource {
@@ -13,6 +13,10 @@ export class CreateInbodyRecordDto {
 
   @IsString()
   name: string;
+
+  @IsString()
+  @IsNotEmpty()
+  sponsor_name: string;
 
   @IsEnum(InbodyRecordType)
   record_type: InbodyRecordType;

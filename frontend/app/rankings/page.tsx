@@ -55,6 +55,11 @@ const emptyRankings: Rankings = {
   inspirationKing: [],
 };
 
+function formatParticipantLabel(name: string, sponsorName?: string | null): string {
+  const normalizedSponsor = sponsorName?.trim();
+  return normalizedSponsor ? `${name}_${normalizedSponsor}` : name;
+}
+
 export default function RankingsPage() {
   const [rankings, setRankings] = useState<Rankings>(emptyRankings);
   const [loading, setLoading] = useState(true);
@@ -91,7 +96,10 @@ export default function RankingsPage() {
       }
 
       return (
-        entry.participant.name.toLowerCase().includes(searchTerm) ||
+        formatParticipantLabel(entry.participant.name, entry.participant.sponsorName)
+          .toLowerCase()
+          .includes(searchTerm) ||
+        (entry.participant.sponsorName ?? '').toLowerCase().includes(searchTerm) ||
         (entry.participant.teamName ?? '').toLowerCase().includes(searchTerm)
       );
     });
@@ -157,7 +165,8 @@ export default function RankingsPage() {
                     >
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-sm font-semibold text-gray-900">
-                          #{entry.rank} {entry.participant.name}
+                          #{entry.rank}{' '}
+                          {formatParticipantLabel(entry.participant.name, entry.participant.sponsorName)}
                         </p>
                       </div>
                       {category.isBodyMetrics && (
@@ -266,7 +275,9 @@ export default function RankingsPage() {
                     {entry.rank}
                   </span>
                   <div>
-                    <p className="font-semibold text-gray-900">{entry.participant.name}</p>
+                    <p className="font-semibold text-gray-900">
+                      {formatParticipantLabel(entry.participant.name, entry.participant.sponsorName)}
+                    </p>
                     {entry.participant.teamName && (
                       <p className="text-xs text-gray-500">{entry.participant.teamName}</p>
                     )}

@@ -226,6 +226,7 @@ export const inbodyRecordApi = {
   saveRecord: async (data: {
     member_id: string;
     name: string;
+    sponsor_name: string;
     weight: number;
     skeletal_muscle_mass: number;
     body_fat_mass: number;
@@ -261,6 +262,13 @@ export const adminApi = {
   
   getParticipant: async (id: string) => {
     const response = await api.get<ParticipantDetail>(`/admin/participants/${id}`);
+    return response.data;
+  },
+
+  updateSponsor: async (participantId: string, sponsorName: string) => {
+    const response = await api.put<Participant>(`/admin/participants/${participantId}/sponsor`, {
+      sponsorName,
+    });
     return response.data;
   },
 

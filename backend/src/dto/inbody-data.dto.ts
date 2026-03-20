@@ -4,6 +4,7 @@ import {
   IsString,
   ValidateNested,
   Min,
+  IsNotEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -107,4 +108,10 @@ export class AdminUpdateScoresDto {
   @IsNumber()
   @Min(0)
   inspirationScore: number;
+}
+
+export class AdminUpdateSponsorDto {
+  @IsString()
+  @IsNotEmpty()
+  sponsorName: string;
 }

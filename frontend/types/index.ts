@@ -3,6 +3,7 @@ export interface Participant {
   email: string | null;
   phone: string | null;
   name: string;
+  sponsorName: string | null;
   teamName: string | null;
   role: 'participant' | 'admin';
   isActive: boolean;
@@ -41,6 +42,7 @@ export interface RankingEntry {
   participant: {
     id: string;
     name: string;
+    sponsorName: string | null;
     teamName: string | null;
     communicationScore: number;
     inspirationScore: number;

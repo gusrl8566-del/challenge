@@ -4,7 +4,7 @@ import { IsNull, Repository } from 'typeorm';
 import { Participant } from '../../entities/participant.entity';
 import { InbodyData } from '../../entities/inbody-data.entity';
 import { InbodyRecord } from '../../entities/inbody-record.entity';
-import { AdminUpdateScoresDto } from '../../dto/inbody-data.dto';
+import { AdminUpdateScoresDto, AdminUpdateSponsorDto } from '../../dto/inbody-data.dto';
 import { ChallengeStatusService } from '../challenge-status/challenge-status.service';
 import { ChallengeSeason } from '../../entities/challenge-season.entity';
 
@@ -53,6 +53,27 @@ export class AdminService {
     await this.participantsRepository.update(participantId, {
       communicationScore: dto.communicationScore,
       inspirationScore: dto.inspirationScore,
+    });
+
+    const updated = await this.participantsRepository.findOne({
+      where: { id: participantId },
+    });
+
+    if (!updated) {
+      throw new NotFoundException('Participant not found');
+    }
+
+    return updated;
+  }
+
+  async updateParticipantSponsor(
+    participantId: string,
+    dto: AdminUpdateSponsorDto,
+  ): Promise<Participant> {
+    const normalizedSponsorName = dto.sponsorName.trim();
+
+    await this.participantsRepository.update(participantId, {
+      sponsorName: normalizedSponsorName,
     });
 
     const updated = await this.participantsRepository.findOne({

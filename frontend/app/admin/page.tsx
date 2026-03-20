@@ -75,6 +75,11 @@ function formatSignedMetric(value: number): string {
   return `${sign}${formatNumber(Math.abs(value))}kg`;
 }
 
+function formatParticipantLabel(name: string, sponsorName?: string | null): string {
+  const normalizedSponsor = sponsorName?.trim();
+  return normalizedSponsor ? `${name}_${normalizedSponsor}` : name;
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -239,7 +244,12 @@ export default function AdminPage() {
     const searchTerm = search.trim().toLowerCase();
 
     const filtered = rows.filter((row) => {
-      if (searchTerm && !row.participant.name.toLowerCase().includes(searchTerm)) {
+      const participantLabel = formatParticipantLabel(
+        row.participant.name,
+        row.participant.sponsorName
+      ).toLowerCase();
+
+      if (searchTerm && !participantLabel.includes(searchTerm)) {
         return false;
       }
 
@@ -791,7 +801,7 @@ export default function AdminPage() {
                   >
                     <div className="flex items-center justify-between">
                       <p className="font-semibold text-slate-900">
-                        #{entry.rank} {entry.participant.name}
+                        #{entry.rank} {formatParticipantLabel(entry.participant.name, entry.participant.sponsorName)}
                       </p>
                     </div>
                     <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-600">
@@ -882,6 +892,7 @@ export default function AdminPage() {
                       참가자명
                   </button>
                 </th>
+                <th className="px-3 py-3 font-semibold">스폰서명</th>
                 <th className="px-3 py-3 font-semibold">측정 전 체중</th>
                 <th className="px-3 py-3 font-semibold">측정 후 체중</th>
                 <th className="px-3 py-3 font-semibold">
@@ -932,6 +943,7 @@ export default function AdminPage() {
                         {row.participant.name}
                       </Link>
                     </td>
+                    <td className="px-3 py-3 text-slate-700">{row.participant.sponsorName || '-'}</td>
                     <td className="px-3 py-3 text-slate-700">
                       {row.inbody && row.inbody.beforeWeight !== null
                         ? `${formatNumber(row.inbody.beforeWeight)}kg`
@@ -1011,9 +1023,9 @@ export default function AdminPage() {
               })}
               {paginatedRows.length === 0 && (
                 <tr>
-                  <td colSpan={12} className="px-3 py-12 text-center text-slate-500">
-                    현재 필터 조건에 맞는 참가자가 없습니다.
-                  </td>
+                    <td colSpan={13} className="px-3 py-12 text-center text-slate-500">
+                      현재 필터 조건에 맞는 참가자가 없습니다.
+                    </td>
                 </tr>
               )}
             </tbody>

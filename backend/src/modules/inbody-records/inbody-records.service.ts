@@ -51,6 +51,7 @@ export class InbodyRecordsService {
     const participant = await this.syncParticipantForActiveSeason({
       memberId: data.member_id,
       name: data.name,
+      sponsorName: data.sponsor_name,
       activeSeasonId: activeSeason.id,
     });
 
@@ -85,10 +86,12 @@ export class InbodyRecordsService {
   private async syncParticipantForActiveSeason(params: {
     memberId: string;
     name: string;
+    sponsorName: string;
     activeSeasonId: string;
   }): Promise<Participant> {
     const memberId = params.memberId.trim();
     const name = params.name.trim();
+    const sponsorName = params.sponsorName.trim();
 
     let participant = await this.participantsRepository.findOne({
       where: { phone: memberId },
@@ -101,6 +104,7 @@ export class InbodyRecordsService {
         phone: memberId,
         password: tempPassword,
         name,
+        sponsorName,
         role: ParticipantRole.PARTICIPANT,
         teamName: null,
         isActive: true,
@@ -119,6 +123,11 @@ export class InbodyRecordsService {
 
     if (name && participant.name !== name) {
       participant.name = name;
+      changed = true;
+    }
+
+    if (participant.sponsorName !== sponsorName) {
+      participant.sponsorName = sponsorName;
       changed = true;
     }
 

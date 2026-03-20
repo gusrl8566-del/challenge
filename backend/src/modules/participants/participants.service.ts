@@ -137,6 +137,7 @@ export class ParticipantsService {
         'phone',
         'name',
         'teamName',
+        'sponsorName',
         'role',
         'isActive',
         'communicationScore',
