@@ -7,6 +7,7 @@ const DEFAULT_START_ROW = 2;
 export type ParticipantExcelRow = {
   no: number;
   name: string;
+  sponsorName: string;
   email: string;
   teamName: string;
   beforeWeight: number | null;
@@ -153,10 +154,11 @@ function createFallbackWorksheet(workbook: ExcelJS.Workbook) {
   const headers = [
     '번호',
     '참가자명',
+    '스폰서명',
     '이메일',
     '팀명',
-    '측정 전 체중(kg)',
-    '측정 후 체중(kg)',
+    '측정 전(kg)',
+    '측정 후(kg)',
     '근육 변화(kg)',
     '체지방 변화(kg)',
     '소통점수',
@@ -188,6 +190,7 @@ function createFallbackWorksheet(workbook: ExcelJS.Workbook) {
   worksheet.columns = [
     { width: 8 },
     { width: 18 },
+    { width: 16 },
     { width: 28 },
     { width: 16 },
     { width: 14 },
@@ -240,16 +243,17 @@ export async function exportParticipantsExcel(rows: ParticipantExcelRow[], optio
     const target = worksheet.getRow(startRow + index);
     target.getCell(1).value = row.no;
     target.getCell(2).value = row.name;
-    target.getCell(3).value = row.email;
-    target.getCell(4).value = row.teamName;
-    target.getCell(5).value = row.beforeWeight;
-    target.getCell(6).value = row.afterWeight;
-    target.getCell(7).value = row.muscleGain;
-    target.getCell(8).value = row.fatLoss;
-    target.getCell(9).value = row.communicationScore;
-    target.getCell(10).value = row.inspirationScore;
-    target.getCell(11).value = row.totalScore;
-    target.getCell(12).value = row.submittedAt;
+    target.getCell(3).value = row.sponsorName;
+    target.getCell(4).value = row.email;
+    target.getCell(5).value = row.teamName;
+    target.getCell(6).value = row.beforeWeight;
+    target.getCell(7).value = row.afterWeight;
+    target.getCell(8).value = row.muscleGain;
+    target.getCell(9).value = row.fatLoss;
+    target.getCell(10).value = row.communicationScore;
+    target.getCell(11).value = row.inspirationScore;
+    target.getCell(12).value = row.totalScore;
+    target.getCell(13).value = row.submittedAt;
     target.commit();
   });
 

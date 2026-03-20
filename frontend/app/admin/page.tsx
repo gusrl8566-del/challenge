@@ -548,6 +548,7 @@ export default function AdminPage() {
         filteredAndSortedRows.map((row, index) => ({
           no: index + 1,
           name: row.participant.name,
+          sponsorName: row.participant.sponsorName ?? '-',
           email: row.participant.email ?? row.participant.phone ?? '-',
           teamName: row.participant.teamName ?? '-',
           beforeWeight: row.inbody ? Number(row.inbody.beforeWeight) : null,
@@ -893,8 +894,8 @@ export default function AdminPage() {
                   </button>
                 </th>
                 <th className="px-3 py-3 font-semibold">스폰서명</th>
-                <th className="px-3 py-3 font-semibold">측정 전 체중</th>
-                <th className="px-3 py-3 font-semibold">측정 후 체중</th>
+                <th className="px-3 py-3 font-semibold">측정 전</th>
+                <th className="px-3 py-3 font-semibold">측정 후</th>
                 <th className="px-3 py-3 font-semibold">
                   <button type="button" onClick={() => handleSortClick('muscleGain')}>
                     근육 변화
