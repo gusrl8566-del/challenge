@@ -31,6 +31,8 @@ type SortDirection = 'asc' | 'desc';
 
 const PAGE_SIZES = [10, 20, 50] as const;
 const CANDIDATE_LIMIT = 10;
+const SHOW_TEMPLATE_BUTTON = false;
+const SHOW_RECALCULATE_BUTTON = false;
 
 const emptyRankings: Rankings = {
   gainKing: [],
@@ -612,20 +614,24 @@ export default function AdminPage() {
               ))}
             </select>
           </div>
-          <input
-            ref={templateInputRef}
-            type="file"
-            accept=".xlsx"
-            onChange={handleTemplateFileChange}
-            className="hidden"
-          />
-          <button
-            type="button"
-            onClick={() => templateInputRef.current?.click()}
-            className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100"
-          >
-            템플릿 선택
-          </button>
+          {SHOW_TEMPLATE_BUTTON && (
+            <>
+              <input
+                ref={templateInputRef}
+                type="file"
+                accept=".xlsx"
+                onChange={handleTemplateFileChange}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => templateInputRef.current?.click()}
+                className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100"
+              >
+                템플릿 선택
+              </button>
+            </>
+          )}
           <button
             type="button"
             onClick={handleExportExcel}
@@ -634,14 +640,16 @@ export default function AdminPage() {
           >
             {exporting ? '엑셀 생성 중...' : '엑셀 다운로드'}
           </button>
-          <button
-            type="button"
-            onClick={handleRecalculateRankings}
-            disabled={recalculating}
-            className="inline-flex items-center justify-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-primary-300"
-          >
-            {recalculating ? '순위 재계산 중...' : '순위 재계산'}
-          </button>
+          {SHOW_RECALCULATE_BUTTON && (
+            <button
+              type="button"
+              onClick={handleRecalculateRankings}
+              disabled={recalculating}
+              className="inline-flex items-center justify-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-primary-300"
+            >
+              {recalculating ? '순위 재계산 중...' : '순위 재계산'}
+            </button>
+          )}
           <button
             type="button"
             onClick={handleLogout}
@@ -650,9 +658,11 @@ export default function AdminPage() {
             로그아웃
           </button>
         </div>
-        <p className="text-xs text-slate-500 md:text-right">
-          템플릿: {templateFile?.name ?? '기본 템플릿(/templates/챌린저_참가자.xlsx)'}
-        </p>
+        {SHOW_TEMPLATE_BUTTON && (
+          <p className="text-xs text-slate-500 md:text-right">
+            템플릿: {templateFile?.name ?? '기본 템플릿(/templates/챌린저_참가자.xlsx)'}
+          </p>
+        )}
       </div>
 
       {message && (

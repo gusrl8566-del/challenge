@@ -2,17 +2,29 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { hasAdminSession } from '@/lib/admin-auth';
 
-const navItems = [
+const participantNavItems = [
   { href: '/', label: '홈' },
-  { href: '/rankings', label: '순위' },
   { href: '/upload', label: '데이터 업로드' },
+];
+
+const adminNavItems = [
+  { href: '/rankings', label: '순위' },
   { href: '/admin', label: '관리자' },
 ];
 
 export function Navbar() {
   const pathname = usePathname();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    setIsAdmin(hasAdminSession());
+  }, [pathname]);
+
+  const navItems = isAdmin ? adminNavItems : participantNavItems;
 
   return (
     <nav className="border-b bg-white shadow-sm">
