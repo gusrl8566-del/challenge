@@ -214,6 +214,31 @@ export default function UploadPage() {
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         {step === 'upload' && (
           <div className="space-y-5">
+            <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-lg font-semibold text-slate-900">촬영 가이드 (OCR 정확도 향상)</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <article className="rounded-xl border border-emerald-300 bg-emerald-50 p-3">
+                  <p className="text-sm font-semibold text-emerald-800">정상적인 케이스</p>
+                  <img
+                    src="/examples/inbody_good.jpg"
+                    alt="정상적인 인바디 업로드 예시"
+                    className="mt-2 h-36 w-full rounded-lg border border-emerald-200 object-cover"
+                  />
+                  <p className="mt-2 text-sm text-emerald-800">세로 촬영 + 여백 최소 + 숫자 선명</p>
+                </article>
+
+                <article className="rounded-xl border border-rose-300 bg-rose-50 p-3">
+                  <p className="text-sm font-semibold text-rose-800">비정상적인 케이스</p>
+                  <img
+                    src="/examples/inbody_bad.jpg"
+                    alt="비정상적인 인바디 업로드 예시"
+                    className="mt-2 h-36 w-full rounded-lg border border-rose-200 object-cover"
+                  />
+                  <p className="mt-2 text-sm text-rose-800">가로 촬영/원거리/흐림/잘림은 인식 실패 가능</p>
+                </article>
+              </div>
+            </section>
+
             <p className="text-xl text-slate-700">1) 인바디 사진을 선택해주세요.</p>
 
             <input
