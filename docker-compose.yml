@@ -47,7 +47,7 @@ services:
     ports:
       - "3001:3001"
     volumes:
-      - upload_data:/uploads
+      - ${UPLOAD_HOST_DIR:-/volume1/docker/inbody/uploads}:/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -71,4 +71,3 @@ services:
 
 volumes:
   postgres_data:
-  upload_data:

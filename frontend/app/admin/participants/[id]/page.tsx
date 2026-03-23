@@ -41,6 +41,20 @@ function deltaText(value: number, unit: string, kind: 'up' | 'down') {
   return `${value >= 0 ? '-' : '+'}${formatMetric(abs)}${unit}`;
 }
 
+function resolveImageUrl(imageUrl?: string | null) {
+  if (!imageUrl) {
+    return null;
+  }
+
+  if (/^https?:\/\//i.test(imageUrl)) {
+    return imageUrl;
+  }
+
+  const uploadBaseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace(/\/api\/?$/, '');
+  const normalizedPath = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
+  return `${uploadBaseUrl}${normalizedPath}`;
+}
+
 export default function AdminParticipantDetailPage() {
   const params = useParams<{ id?: string | string[] }>();
   const router = useRouter();
@@ -144,6 +158,39 @@ export default function AdminParticipantDetailPage() {
       form.afterBodyFatMass,
     ].every((value) => value.trim() !== '');
   }, [form]);
+
+  const comparisonImageGroups = useMemo(() => {
+    const inbody = participant?.inbodyData;
+    if (!inbody) {
+      return [] as {
+        key: 'front' | 'back' | 'side';
+        label: string;
+        beforeUrl: string | null;
+        afterUrl: string | null;
+      }[];
+    }
+
+    return [
+      {
+        key: 'front' as const,
+        label: '앞면',
+        beforeUrl: resolveImageUrl(inbody.beforeFrontImageUrl),
+        afterUrl: resolveImageUrl(inbody.afterFrontImageUrl),
+      },
+      {
+        key: 'back' as const,
+        label: '뒷면',
+        beforeUrl: resolveImageUrl(inbody.beforeBackImageUrl),
+        afterUrl: resolveImageUrl(inbody.afterBackImageUrl),
+      },
+      {
+        key: 'side' as const,
+        label: '옆면',
+        beforeUrl: resolveImageUrl(inbody.beforeSideImageUrl),
+        afterUrl: resolveImageUrl(inbody.afterSideImageUrl),
+      },
+    ];
+  }, [participant?.inbodyData]);
 
   const handleChange = (field: keyof FormState, value: string) => {
     setForm((prev) => ({
@@ -250,9 +297,6 @@ export default function AdminParticipantDetailPage() {
             <p className="text-sm text-slate-500">참가자 상세</p>
             <h1 className="text-2xl font-bold text-slate-900">{participant.name}</h1>
             <p className="text-sm text-slate-600">{participant.email}</p>
-            {!participant.email && participant.phone && (
-              <p className="text-sm text-slate-600">{participant.phone}</p>
-            )}
             <p className="text-sm text-slate-600">스폰서: {participant.sponsorName || '-'}</p>
           </div>
           <Link
@@ -312,6 +356,59 @@ export default function AdminParticipantDetailPage() {
           )}
           <p className="mt-1 text-xs text-slate-500">Before - After (감소가 플러스)</p>
         </article>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-slate-900">시작/종료 전신 사진 비교</h2>
+          <p className="mt-1 text-sm text-slate-600">시작 인바디와 종료 인바디의 앞/뒤/옆 사진을 좌우로 비교합니다.</p>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-2">
+          <article className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <h3 className="text-base font-semibold text-slate-900">시작 인바디</h3>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-1">
+              {comparisonImageGroups.map((group) => (
+                <div key={`before-${group.key}`}>
+                  <p className="mb-1 text-sm font-medium text-slate-700">{group.label}</p>
+                  {group.beforeUrl ? (
+                    <img
+                      src={group.beforeUrl}
+                      alt={`시작 인바디 ${group.label}`}
+                      className="h-52 w-full rounded-lg border border-slate-200 object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-52 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white text-sm text-slate-500">
+                      이미지 없음
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <h3 className="text-base font-semibold text-slate-900">종료 인바디</h3>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-1">
+              {comparisonImageGroups.map((group) => (
+                <div key={`after-${group.key}`}>
+                  <p className="mb-1 text-sm font-medium text-slate-700">{group.label}</p>
+                  {group.afterUrl ? (
+                    <img
+                      src={group.afterUrl}
+                      alt={`종료 인바디 ${group.label}`}
+                      className="h-52 w-full rounded-lg border border-slate-200 object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-52 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white text-sm text-slate-500">
+                      이미지 없음
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </article>
+        </div>
       </section>
 
       {!hasInbodyValues && (

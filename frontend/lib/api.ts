@@ -224,7 +224,7 @@ export const inbodyRecordApi = {
   },
 
   saveRecord: async (data: {
-    member_id: string;
+    phone_number: string;
     name: string;
     sponsor_name: string;
     weight: number;
@@ -232,6 +232,9 @@ export const inbodyRecordApi = {
     body_fat_mass: number;
     record_type: 'start' | 'end';
     image_url: string;
+    front_image_url?: string;
+    back_image_url?: string;
+    side_image_url?: string;
     source?: 'ocr' | 'manual';
   }) => {
     const response = await api.post<ParticipantInbodyRecord>('/inbody-records', data);

@@ -41,6 +41,15 @@ export class InbodyData {
   @Column({ nullable: true })
   beforeImageFilename: string;
 
+  @Column({ nullable: true })
+  beforeFrontImageUrl: string;
+
+  @Column({ nullable: true })
+  beforeBackImageUrl: string;
+
+  @Column({ nullable: true })
+  beforeSideImageUrl: string;
+
   @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
   afterWeight: number;
 
@@ -55,6 +64,15 @@ export class InbodyData {
 
   @Column({ nullable: true })
   afterImageFilename: string;
+
+  @Column({ nullable: true })
+  afterFrontImageUrl: string;
+
+  @Column({ nullable: true })
+  afterBackImageUrl: string;
+
+  @Column({ nullable: true })
+  afterSideImageUrl: string;
 
   @Column({ default: false })
   beforeVerified: boolean;

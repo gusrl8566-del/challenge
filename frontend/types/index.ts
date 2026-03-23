@@ -25,11 +25,17 @@ export interface InbodyData {
   beforeBodyFatMass: number;
   beforeImageUrl: string;
   beforeImageFilename: string;
+  beforeFrontImageUrl?: string | null;
+  beforeBackImageUrl?: string | null;
+  beforeSideImageUrl?: string | null;
   afterWeight: number;
   afterSkeletalMuscleMass: number;
   afterBodyFatMass: number;
   afterImageUrl: string;
   afterImageFilename: string;
+  afterFrontImageUrl?: string | null;
+  afterBackImageUrl?: string | null;
+  afterSideImageUrl?: string | null;
   beforeVerified: boolean;
   afterVerified: boolean;
   submittedAt: string;

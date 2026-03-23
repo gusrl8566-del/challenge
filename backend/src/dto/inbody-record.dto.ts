@@ -8,8 +8,13 @@ export enum InbodyRecordInputSource {
 }
 
 export class CreateInbodyRecordDto {
+  @IsOptional()
   @IsString()
   member_id: string;
+
+  @IsOptional()
+  @IsString()
+  phone_number?: string;
 
   @IsString()
   name: string;
@@ -45,6 +50,18 @@ export class CreateInbodyRecordDto {
   @IsOptional()
   @IsString()
   image_url?: string;
+
+  @IsOptional()
+  @IsString()
+  front_image_url?: string;
+
+  @IsOptional()
+  @IsString()
+  back_image_url?: string;
+
+  @IsOptional()
+  @IsString()
+  side_image_url?: string;
 
   @IsOptional()
   @IsEnum(InbodyRecordInputSource)

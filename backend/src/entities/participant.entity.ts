@@ -31,7 +31,7 @@ export class Participant {
   @Column({ length: 255 })
   name: string;
 
-  @Column({ type: 'varchar', length: 20, nullable: true, unique: true })
+  @Column({ type: 'varchar', length: 128, nullable: true, unique: true })
   phone: string | null;
 
   @Column({ type: 'varchar', length: 100, nullable: true })

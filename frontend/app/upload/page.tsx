@@ -6,11 +6,19 @@ import { ChallengeStatus } from '@/types';
 
 type FlowStep = 'upload' | 'processing' | 'confirm' | 'submitted';
 type RecordType = 'start' | 'end';
+type ProgressPhotoKey = 'front' | 'back' | 'side';
+
+const progressPhotoLabels: Record<ProgressPhotoKey, string> = {
+  front: '앞면',
+  back: '뒷면',
+  side: '옆면',
+};
 
 function toInputValue(value: number | null): string {
   if (value === null || !Number.isFinite(value)) {
     return '';
   }
+
   return value.toFixed(1);
 }
 
@@ -18,13 +26,26 @@ export default function UploadPage() {
   const [step, setStep] = useState<FlowStep>('upload');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState('');
-  const [memberId, setMemberId] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [name, setName] = useState('');
   const [sponsorName, setSponsorName] = useState('');
   const [weight, setWeight] = useState('');
   const [skeletalMuscleMass, setSkeletalMuscleMass] = useState('');
   const [bodyFatMass, setBodyFatMass] = useState('');
   const [recordType, setRecordType] = useState<RecordType>('start');
+  const [progressPhotos, setProgressPhotos] = useState<Record<ProgressPhotoKey, File | null>>({
+    front: null,
+    back: null,
+    side: null,
+  });
+  const [progressPhotoUrls, setProgressPhotoUrls] = useState<
+    Record<ProgressPhotoKey, string | null>
+  >({
+    front: null,
+    back: null,
+    side: null,
+  });
+  const [uploadingPhotoKey, setUploadingPhotoKey] = useState<ProgressPhotoKey | null>(null);
   const [challengeStatus, setChallengeStatus] = useState<ChallengeStatus | null>(null);
   const [statusWarning, setStatusWarning] = useState('');
   const [message, setMessage] = useState('');
@@ -82,15 +103,20 @@ export default function UploadPage() {
       setImageUrl(uploaded.url);
 
       const extracted = await inbodyRecordApi.extractFromImage(uploaded.url);
-      setMemberId(extracted.member_id || '');
       setWeight(toInputValue(extracted.weight));
       setSkeletalMuscleMass(toInputValue(extracted.skeletal_muscle_mass));
       setBodyFatMass(toInputValue(extracted.body_fat_mass));
 
+      if (extracted.member_id) {
+        setPhoneNumber(extracted.member_id.replace(/\D/g, ''));
+      }
+
       setStep('confirm');
+      setMessage('OCR 파싱이 완료되었습니다. 값을 확인하고 나머지 사진을 업로드한 뒤 제출해주세요.');
+      setMessageStatus('success');
     } catch {
       setStep('upload');
-      setMessage('OCR 처리에 실패했습니다. 사진을 다시 올려주세요.');
+      setMessage('OCR 처리에 실패했습니다. 인바디 사진을 다시 올려주세요.');
       setMessageStatus('error');
     }
   };
@@ -120,8 +146,10 @@ export default function UploadPage() {
       return;
     }
 
-    if (!memberId.trim()) {
-      setMessage('회원번호를 입력해주세요.');
+    const normalizedPhone = phoneNumber.replace(/\D/g, '');
+
+    if (!normalizedPhone) {
+      setMessage('휴대폰번호를 입력해주세요.');
       setMessageStatus('error');
       return;
     }
@@ -142,16 +170,31 @@ export default function UploadPage() {
       return;
     }
 
+    if (!progressPhotoUrls.front || !progressPhotoUrls.back || !progressPhotoUrls.side) {
+      setMessage('앞면, 뒷면, 옆면 사진을 모두 업로드해주세요.');
+      setMessageStatus('error');
+      return;
+    }
+
     try {
-        await inbodyRecordApi.saveRecord({
-          member_id: memberId.trim(),
-          name: name.trim(),
-          sponsor_name: sponsorName.trim(),
-          weight: parsedWeight,
-          skeletal_muscle_mass: parsedSkeletalMuscleMass,
+      if (!imageUrl) {
+        setMessage('인바디 OCR 이미지가 없습니다. 처음 단계부터 다시 진행해주세요.');
+        setMessageStatus('error');
+        return;
+      }
+
+      await inbodyRecordApi.saveRecord({
+        phone_number: normalizedPhone,
+        name: name.trim(),
+        sponsor_name: sponsorName.trim(),
+        weight: parsedWeight,
+        skeletal_muscle_mass: parsedSkeletalMuscleMass,
         body_fat_mass: parsedBodyFatMass,
         record_type: recordType,
         image_url: imageUrl,
+        front_image_url: progressPhotoUrls.front,
+        back_image_url: progressPhotoUrls.back,
+        side_image_url: progressPhotoUrls.side,
         source: 'ocr',
       });
 
@@ -168,15 +211,59 @@ export default function UploadPage() {
     setStep('upload');
     setSelectedFile(null);
     setImageUrl('');
-    setMemberId('');
+    setPhoneNumber('');
     setName('');
     setSponsorName('');
     setWeight('');
     setSkeletalMuscleMass('');
     setBodyFatMass('');
     setRecordType('start');
+    setProgressPhotos({
+      front: null,
+      back: null,
+      side: null,
+    });
+    setProgressPhotoUrls({
+      front: null,
+      back: null,
+      side: null,
+    });
+    setUploadingPhotoKey(null);
     setMessage('');
     setMessageStatus(null);
+  };
+
+  const handleProgressPhotoSelect = async (photoKey: ProgressPhotoKey, file: File | null) => {
+    setProgressPhotos((prev) => ({
+      ...prev,
+      [photoKey]: file,
+    }));
+
+    if (!file) {
+      setProgressPhotoUrls((prev) => ({
+        ...prev,
+        [photoKey]: null,
+      }));
+      return;
+    }
+
+    try {
+      setUploadingPhotoKey(photoKey);
+      const uploaded = await uploadsApi.uploadImage(file);
+      setProgressPhotoUrls((prev) => ({
+        ...prev,
+        [photoKey]: uploaded.url,
+      }));
+    } catch {
+      setProgressPhotoUrls((prev) => ({
+        ...prev,
+        [photoKey]: null,
+      }));
+      setMessage(`${progressPhotoLabels[photoKey]} 사진 업로드에 실패했습니다. 다시 선택해주세요.`);
+      setMessageStatus('error');
+    } finally {
+      setUploadingPhotoKey((prev) => (prev === photoKey ? null : prev));
+    }
   };
 
   if (challengeStatus && !challengeStatus.isOpen) {
@@ -222,7 +309,7 @@ export default function UploadPage() {
                   <img
                     src="/examples/inbody_good.jpg"
                     alt="정상적인 인바디 업로드 예시"
-                    className="mt-2 h-36 w-full rounded-lg border border-emerald-200 object-cover"
+                    className="mt-2 h-72 w-full rounded-lg border border-emerald-200 bg-white object-contain"
                   />
                   <p className="mt-2 text-sm text-emerald-800">세로 촬영 + 여백 최소 + 숫자 선명</p>
                 </article>
@@ -232,7 +319,7 @@ export default function UploadPage() {
                   <img
                     src="/examples/inbody_bad.jpg"
                     alt="비정상적인 인바디 업로드 예시"
-                    className="mt-2 h-36 w-full rounded-lg border border-rose-200 object-cover"
+                    className="mt-2 h-72 w-full rounded-lg border border-rose-200 bg-white object-contain"
                   />
                   <p className="mt-2 text-sm text-rose-800">가로 촬영/원거리/흐림/잘림은 인식 실패 가능</p>
                 </article>
@@ -290,13 +377,13 @@ export default function UploadPage() {
               />
             )}
 
-            <button
-              type="button"
-              onClick={handleStartOcr}
-              className="h-[64px] w-full rounded-xl bg-emerald-600 text-2xl font-semibold text-white hover:bg-emerald-700"
-            >
-              사진 업로드
-            </button>
+              <button
+                type="button"
+                onClick={handleStartOcr}
+                className="h-[64px] w-full rounded-xl bg-emerald-600 text-2xl font-semibold text-white hover:bg-emerald-700"
+              >
+                OCR 시작
+              </button>
           </div>
         )}
 
@@ -309,27 +396,19 @@ export default function UploadPage() {
 
         {step === 'confirm' && (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="rounded-2xl border-2 border-red-300 bg-red-50 px-4 py-4 shadow-sm">
-              <p className="text-[24px] font-extrabold leading-tight text-red-700">
-                ⚠️ 반드시 확인해주세요
-              </p>
-              <p className="mt-2 text-[21px] font-semibold leading-snug text-red-800">
-                자동 인식(OCR) 결과가 틀릴 수 있습니다.
-              </p>
-              <p className="mt-1 text-[20px] leading-snug text-red-800">
-                회원번호, 체중, 골격근량, 체지방량을 직접 확인하고 수정한 뒤 제출해주세요.
-              </p>
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-4 shadow-sm">
+              <p className="text-xl font-bold text-blue-800">2) OCR 결과 확인 후 제출해주세요.</p>
+              <p className="mt-1 text-base text-blue-700">앞/뒤/옆 사진은 이 화면에서 업로드됩니다.</p>
             </div>
 
-            <p className="text-xl text-slate-700">2) 값 확인 후 제출해주세요.</p>
-
             <label className="block">
-              <span className="mb-2 block text-xl font-medium text-slate-900">회원번호</span>
+              <span className="mb-2 block text-xl font-medium text-slate-900">휴대폰번호</span>
               <input
                 type="text"
-                value={memberId}
-                onChange={(e) => setMemberId(e.target.value)}
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
                 className="h-[64px] w-full rounded-xl border border-slate-300 px-4 text-[22px]"
+                placeholder="01012345678"
                 required
               />
             </label>
@@ -421,8 +500,37 @@ export default function UploadPage() {
               </div>
             </fieldset>
 
+            <section className="rounded-xl border border-slate-300 p-4">
+              <p className="text-xl font-medium text-slate-900">{recordType === 'start' ? '시작' : '종료'} 인바디 전신 사진</p>
+              <p className="mt-1 text-sm text-slate-600">앞면/뒷면/옆면 사진을 각각 1장씩 업로드해주세요.</p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                {(Object.keys(progressPhotoLabels) as ProgressPhotoKey[]).map((photoKey) => (
+                  <label key={photoKey} className="block rounded-xl border border-slate-300 bg-slate-50 p-3">
+                    <span className="mb-2 block text-base font-medium text-slate-800">{progressPhotoLabels[photoKey]}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        void handleProgressPhotoSelect(photoKey, e.target.files?.[0] || null);
+                      }}
+                      className="block w-full text-sm text-slate-700"
+                      required
+                    />
+                    <span className="mt-2 block truncate text-xs text-slate-600">
+                      {uploadingPhotoKey === photoKey
+                        ? '업로드 중...'
+                        : progressPhotoUrls[photoKey]
+                          ? '업로드 완료'
+                          : progressPhotos[photoKey]?.name || '선택된 파일 없음'}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </section>
+
             <button
               type="submit"
+              disabled={Boolean(uploadingPhotoKey)}
               className="h-[68px] w-full rounded-xl bg-blue-700 text-2xl font-semibold text-white hover:bg-blue-800"
             >
               제출하기

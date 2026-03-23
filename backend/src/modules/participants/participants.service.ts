@@ -6,6 +6,7 @@ import { CreateParticipantDto, LoginDto, QuickAccessDto } from '../../dto/create
 import * as bcrypt from 'bcrypt';
 import { ChallengeStatusService } from '../challenge-status/challenge-status.service';
 import { InbodyData } from '../../entities/inbody-data.entity';
+import { hashPhone, normalizePhone } from '../../common/phone-security.util';
 
 @Injectable()
 export class ParticipantsService {
@@ -19,7 +20,8 @@ export class ParticipantsService {
 
   async create(createParticipantDto: CreateParticipantDto): Promise<Participant> {
     const normalizedEmail = createParticipantDto.email?.trim().toLowerCase();
-    const normalizedPhone = this.normalizePhone(createParticipantDto.phone);
+    const normalizedPhone = normalizePhone(createParticipantDto.phone);
+    const encryptedPhone = normalizedPhone ? hashPhone(normalizedPhone) : null;
 
     if (!normalizedEmail && !normalizedPhone) {
       throw new ConflictException('Email or phone is required');
@@ -37,7 +39,7 @@ export class ParticipantsService {
 
     if (normalizedPhone) {
       const existingByPhone = await this.participantsRepository.findOne({
-        where: { phone: normalizedPhone },
+        where: [{ phone: encryptedPhone! }, { phone: normalizedPhone }],
       });
 
       if (existingByPhone) {
@@ -51,7 +53,7 @@ export class ParticipantsService {
     const participant = this.participantsRepository.create({
       ...createParticipantDto,
       email: normalizedEmail ?? null,
-      phone: normalizedPhone,
+      phone: encryptedPhone,
       password: hashedPassword,
       seasonId: activeSeason.id,
     });
@@ -62,10 +64,12 @@ export class ParticipantsService {
   async login(loginDto: LoginDto): Promise<Participant> {
     const loginId = loginDto.loginId?.trim();
     const normalizedEmail = loginId.toLowerCase();
-    const normalizedPhone = this.normalizePhone(loginId);
+    const normalizedPhone = normalizePhone(loginId);
+    const encryptedPhone = normalizedPhone ? hashPhone(normalizedPhone) : null;
 
     const where: Array<{ email?: string; phone?: string }> = [{ email: normalizedEmail }];
-    if (normalizedPhone) {
+    if (normalizedPhone && encryptedPhone) {
+      where.push({ phone: encryptedPhone });
       where.push({ phone: normalizedPhone });
     }
 
@@ -89,7 +93,8 @@ export class ParticipantsService {
   async quickAccess(dto: QuickAccessDto): Promise<Participant> {
     const loginId = dto.loginId.trim();
     const normalizedEmail = loginId.includes('@') ? loginId.toLowerCase() : null;
-    const normalizedPhone = this.normalizePhone(loginId);
+    const normalizedPhone = normalizePhone(loginId);
+    const encryptedPhone = normalizedPhone ? hashPhone(normalizedPhone) : null;
 
     if (!normalizedEmail && !normalizedPhone) {
       throw new UnauthorizedException('Invalid access information');
@@ -99,7 +104,8 @@ export class ParticipantsService {
     if (normalizedEmail) {
       where.push({ email: normalizedEmail });
     }
-    if (normalizedPhone) {
+    if (normalizedPhone && encryptedPhone) {
+      where.push({ phone: encryptedPhone });
       where.push({ phone: normalizedPhone });
     }
 
@@ -117,7 +123,7 @@ export class ParticipantsService {
     const activeSeason = await this.challengeStatusService.getActiveSeasonOrDefault();
     participant = this.participantsRepository.create({
       email: normalizedEmail,
-      phone: normalizedPhone,
+      phone: encryptedPhone,
       password: tempPassword,
       name: dto.name.trim(),
       role: ParticipantRole.PARTICIPANT,
@@ -175,15 +181,6 @@ export class ParticipantsService {
     participant.seasonId = activeSeason.id;
     await this.inbodyDataRepository.delete({ participantId: participant.id });
     return this.participantsRepository.save(participant);
-  }
-
-  private normalizePhone(value?: string): string | null {
-    if (!value) {
-      return null;
-    }
-
-    const onlyDigits = value.replace(/\D/g, '');
-    return onlyDigits.length > 0 ? onlyDigits : null;
   }
 
   async updateScores(id: string, communicationScore: number, inspirationScore: number): Promise<Participant> {
