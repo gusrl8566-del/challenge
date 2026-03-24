@@ -20,6 +20,9 @@ import { InbodyRecordsModule } from './modules/inbody-records/inbody-records.mod
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
+        synchronize:
+          (configService.get<string>('DB_SYNCHRONIZE') ?? 'false').toLowerCase() ===
+          'true',
         ...(configService.get('DB_TYPE', 'postgres') === 'sqlite'
           ? {
               type: 'sqlite',
@@ -35,7 +38,6 @@ import { InbodyRecordsModule } from './modules/inbody-records/inbody-records.mod
             }),
         entities: [__dirname + '/entities/*.entity{.ts,.js}'],
         autoLoadEntities: true,
-        synchronize: true,
         logging: configService.get('NODE_ENV') === 'development',
       }),
       inject: [ConfigService],
