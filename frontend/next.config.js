@@ -2,6 +2,7 @@
 const backendApiBaseUrl = (
   process.env.NEXT_INTERNAL_API_URL || 'http://backend:3001/api'
 ).replace(/\/+$/, '');
+const backendBaseUrl = backendApiBaseUrl.replace(/\/api$/, '');
 
 const nextConfig = {
   images: {
@@ -12,6 +13,10 @@ const nextConfig = {
       {
         source: '/api/:path*',
         destination: `${backendApiBaseUrl}/:path*`,
+      },
+      {
+        source: '/uploads/:path*',
+        destination: `${backendBaseUrl}/uploads/:path*`,
       },
     ];
   },

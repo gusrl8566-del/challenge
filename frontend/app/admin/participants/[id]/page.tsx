@@ -50,11 +50,7 @@ function resolveImageUrl(imageUrl?: string | null) {
     return imageUrl;
   }
 
-  const uploadBaseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api')
-    .replace(/\/+$/, '')
-    .replace(/\/api$/, '');
-  const normalizedPath = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
-  return `${uploadBaseUrl}${normalizedPath}`;
+  return imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
 }
 
 export default function AdminParticipantDetailPage() {
