@@ -69,6 +69,7 @@ export class InbodyRecordsService {
       },
       normalizedPhone,
       normalizedName,
+      data.record_type,
     );
 
     const participant = await this.syncParticipantForActiveSeason({
@@ -258,6 +259,7 @@ export class InbodyRecordsService {
     },
     phone: string,
     name: string,
+    recordType: InbodyRecordType,
   ): {
     inbody?: string;
     front?: string;
@@ -265,14 +267,16 @@ export class InbodyRecordsService {
     side?: string;
   } {
     const folderName = this.toSafeFolderName(phone, name);
-    const targetDir = path.join(this.uploadDir, folderName);
+    const recordFolder = recordType === InbodyRecordType.START ? 'start' : 'end';
+    const targetBasePath = path.posix.join(folderName, recordFolder);
+    const targetDir = path.join(this.uploadDir, targetBasePath);
     fs.mkdirSync(targetDir, { recursive: true });
 
     return {
-      inbody: this.moveImageToTarget(imageUrls.inbody, folderName, 'inbody.jpg'),
-      front: this.moveImageToTarget(imageUrls.front, folderName, 'front.jpg'),
-      back: this.moveImageToTarget(imageUrls.back, folderName, 'back.jpg'),
-      side: this.moveImageToTarget(imageUrls.side, folderName, 'side.jpg'),
+      inbody: this.moveImageToTarget(imageUrls.inbody, targetBasePath, 'inbody.jpg'),
+      front: this.moveImageToTarget(imageUrls.front, targetBasePath, 'front.jpg'),
+      back: this.moveImageToTarget(imageUrls.back, targetBasePath, 'back.jpg'),
+      side: this.moveImageToTarget(imageUrls.side, targetBasePath, 'side.jpg'),
     };
   }
 
