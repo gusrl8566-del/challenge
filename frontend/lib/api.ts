@@ -12,13 +12,21 @@ import {
   ParticipantInbodyRecord,
 } from '@/types';
 
+function normalizeApiBaseUrl(url: string): string {
+  return url.replace(/\/+$/, '').replace(/\/api$/, '/api');
+}
+
 function resolveApiUrl(): string {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (envUrl) {
+    return normalizeApiBaseUrl(envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`);
+  }
+
   if (typeof window !== 'undefined') {
     return '/api';
   }
 
-  const envUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
-  return envUrl || 'http://localhost:3001/api';
+  return 'http://localhost:3001/api';
 }
 
 const API_URL = resolveApiUrl();
@@ -31,11 +39,12 @@ const api = axios.create({
 });
 
 function getDirectBackendApiUrl(): string | null {
-  if (typeof window === 'undefined') {
-    return null;
+  const envUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (envUrl) {
+    return envUrl.replace(/\/+$/, '').replace(/\/api$/, '');
   }
 
-  return 'https://api.megaworld.store';
+  return typeof window === 'undefined' ? null : null;
 }
 
 api.interceptors.request.use((config) => {

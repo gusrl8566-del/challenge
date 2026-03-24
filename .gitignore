@@ -19,6 +19,8 @@ backups
 # build files
 dist
 build
+.next
+**/.next
 
 # logs
 *.log
