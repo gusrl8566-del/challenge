@@ -107,9 +107,7 @@ export default function UploadPage() {
       setSkeletalMuscleMass(toInputValue(extracted.skeletal_muscle_mass));
       setBodyFatMass(toInputValue(extracted.body_fat_mass));
 
-      if (extracted.member_id) {
-        setPhoneNumber(extracted.member_id.replace(/\D/g, ''));
-      }
+      setPhoneNumber('');
 
       setStep('confirm');
       setMessage('OCR 파싱이 완료되었습니다. 값을 확인하고 나머지 사진을 업로드한 뒤 제출해주세요.');
@@ -146,7 +144,7 @@ export default function UploadPage() {
       return;
     }
 
-    const normalizedPhone = phoneNumber.replace(/\D/g, '');
+    const normalizedPhone = phoneNumber.trim();
 
     if (!normalizedPhone) {
       setMessage('휴대폰번호를 입력해주세요.');
@@ -420,6 +418,7 @@ export default function UploadPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="h-[64px] w-full rounded-xl border border-slate-300 px-4 text-[22px]"
+                placeholder="홍길동"
                 required
               />
             </label>
@@ -431,6 +430,7 @@ export default function UploadPage() {
                 value={sponsorName}
                 onChange={(e) => setSponsorName(e.target.value)}
                 className="h-[64px] w-full rounded-xl border border-slate-300 px-4 text-[22px]"
+                placeholder="스폰서명 입력"
                 required
               />
             </label>
