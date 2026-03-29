@@ -166,13 +166,13 @@ export default function UploadPage() {
       <h1 className="text-2xl font-bold text-center mb-8">Upload Your InBody Data</h1>
       <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-8">
         <div className="bg-white rounded-xl shadow-lg p-6">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Sponsor Name</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">PD이상스폰서명</label>
           <input
             type="text"
             value={sponsorName}
             onChange={(e) => setSponsorName(e.target.value)}
             className="w-full px-4 py-2 border rounded-lg"
-            placeholder="Enter sponsor name"
+            placeholder="PD이상스폰서명 입력"
             required
           />
         </div>

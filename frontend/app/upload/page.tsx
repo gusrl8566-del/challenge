@@ -153,7 +153,7 @@ export default function UploadPage() {
     }
 
     if (!sponsorName.trim()) {
-      setMessage('스폰서명을 입력해주세요.');
+      setMessage('PD이상스폰서명을 입력해주세요.');
       setMessageStatus('error');
       return;
     }
@@ -424,13 +424,13 @@ export default function UploadPage() {
             </label>
 
             <label className="block">
-              <span className="mb-2 block text-xl font-medium text-slate-900">스폰서명</span>
+              <span className="mb-2 block text-xl font-medium text-slate-900">PD이상스폰서명</span>
               <input
                 type="text"
                 value={sponsorName}
                 onChange={(e) => setSponsorName(e.target.value)}
                 className="h-[64px] w-full rounded-xl border border-slate-300 px-4 text-[22px]"
-                placeholder="스폰서명 입력"
+                placeholder="PD이상스폰서명 입력"
                 required
               />
             </label>
