@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, MouseEvent, WheelEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { adminAuthApi, adminApi, inbodyApi } from '@/lib/api';
@@ -14,6 +14,27 @@ type FormState = {
   afterWeight: string;
   afterSkeletalMuscleMass: string;
   afterBodyFatMass: string;
+};
+
+type InbodyPreviewImage = {
+  key: 'before' | 'after';
+  label: string;
+  imageUrl: string | null;
+  filename?: string | null;
+};
+
+type ViewerTransform = {
+  scale: number;
+  offsetX: number;
+  offsetY: number;
+};
+
+type DragState = {
+  key: InbodyPreviewImage['key'];
+  pointerX: number;
+  pointerY: number;
+  offsetX: number;
+  offsetY: number;
 };
 
 function toInputValue(value: number | null | undefined) {
@@ -53,6 +74,14 @@ function resolveImageUrl(imageUrl?: string | null) {
   return imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
 }
 
+function getDefaultViewerTransform(): ViewerTransform {
+  return {
+    scale: 1,
+    offsetX: 0,
+    offsetY: 0,
+  };
+}
+
 export default function AdminParticipantDetailPage() {
   const params = useParams<{ id?: string | string[] }>();
   const router = useRouter();
@@ -71,6 +100,13 @@ export default function AdminParticipantDetailPage() {
   const [saving, setSaving] = useState(false);
   const [participantName, setParticipantName] = useState('');
   const [sponsorName, setSponsorName] = useState('');
+  const [viewerTransforms, setViewerTransforms] = useState<
+    Record<InbodyPreviewImage['key'], ViewerTransform>
+  >({
+    before: getDefaultViewerTransform(),
+    after: getDefaultViewerTransform(),
+  });
+  const [dragState, setDragState] = useState<DragState | null>(null);
   const [message, setMessage] = useState('');
   const [messageStatus, setMessageStatus] = useState<'success' | 'error' | null>(null);
 
@@ -190,11 +226,92 @@ export default function AdminParticipantDetailPage() {
     ];
   }, [participant?.inbodyData]);
 
+  const inbodyPreviewImages = useMemo(() => {
+    const inbody = participant?.inbodyData;
+    if (!inbody) {
+      return [] as InbodyPreviewImage[];
+    }
+
+    return [
+      {
+        key: 'before' as const,
+        label: '시작 인바디',
+        imageUrl: resolveImageUrl(inbody.beforeImageUrl),
+        filename: inbody.beforeImageFilename,
+      },
+      {
+        key: 'after' as const,
+        label: '종료 인바디',
+        imageUrl: resolveImageUrl(inbody.afterImageUrl),
+        filename: inbody.afterImageFilename,
+      },
+    ];
+  }, [participant?.inbodyData]);
+
   const handleChange = (field: keyof FormState, value: string) => {
     setForm((prev) => ({
       ...prev,
       [field]: value,
     }));
+  };
+
+  const handleViewerWheel = (key: InbodyPreviewImage['key'], event: WheelEvent<HTMLDivElement>) => {
+    event.preventDefault();
+
+    setViewerTransforms((prev) => {
+      const current = prev[key];
+      const nextScale = current.scale - event.deltaY * 0.0015;
+      const scale = Math.min(4, Math.max(0.8, Number(nextScale.toFixed(2))));
+
+      return {
+        ...prev,
+        [key]: {
+          ...current,
+          scale,
+        },
+      };
+    });
+  };
+
+  const handleViewerMouseDown = (
+    key: InbodyPreviewImage['key'],
+    event: MouseEvent<HTMLImageElement>,
+  ) => {
+    const transform = viewerTransforms[key];
+    if (transform.scale <= 1) {
+      return;
+    }
+
+    setDragState({
+      key,
+      pointerX: event.clientX,
+      pointerY: event.clientY,
+      offsetX: transform.offsetX,
+      offsetY: transform.offsetY,
+    });
+  };
+
+  const handleViewerMouseMove = (event: MouseEvent<HTMLDivElement>) => {
+    if (!dragState) {
+      return;
+    }
+
+    setViewerTransforms((prev) => ({
+      ...prev,
+      [dragState.key]: {
+        ...prev[dragState.key],
+        offsetX: dragState.offsetX + (event.clientX - dragState.pointerX),
+        offsetY: dragState.offsetY + (event.clientY - dragState.pointerY),
+      },
+    }));
+  };
+
+  const resetViewerTransform = (key: InbodyPreviewImage['key']) => {
+    setViewerTransforms((prev) => ({
+      ...prev,
+      [key]: getDefaultViewerTransform(),
+    }));
+    setDragState(null);
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -354,6 +471,76 @@ export default function AdminParticipantDetailPage() {
           )}
           <p className="mt-1 text-xs text-slate-500">Before - After (감소가 플러스)</p>
         </article>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-slate-900">인바디 원본</h2>
+          <p className="mt-1 text-sm text-slate-600">영역 안에서 바로 마우스 휠로 확대/축소하고, 확대된 상태에서 드래그로 이동할 수 있습니다.</p>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          {inbodyPreviewImages.map((image) => (
+            <article key={image.key} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div>
+                <h3 className="text-base font-semibold text-slate-900">{image.label}</h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  {image.filename?.trim() ? image.filename : '파일명 정보 없음'}
+                </p>
+              </div>
+
+              {image.imageUrl ? (
+                <div className="mt-3 rounded-lg border border-slate-200 bg-white">
+                  <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
+                    <p className="text-xs text-slate-500">휠 확대/축소, 더블클릭 원위치</p>
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
+                        {Math.round(viewerTransforms[image.key].scale * 100)}%
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => resetViewerTransform(image.key)}
+                        className="inline-flex rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                      >
+                        원위치
+                      </button>
+                    </div>
+                  </div>
+                  <div
+                    className="h-80 overflow-hidden bg-slate-100"
+                    onWheel={(event) => handleViewerWheel(image.key, event)}
+                    onMouseMove={handleViewerMouseMove}
+                    onMouseUp={() => setDragState(null)}
+                    onMouseLeave={() => setDragState(null)}
+                  >
+                    <img
+                      src={image.imageUrl}
+                      alt={image.label}
+                      onMouseDown={(event) => handleViewerMouseDown(image.key, event)}
+                      onDoubleClick={() => resetViewerTransform(image.key)}
+                      draggable={false}
+                      className={`h-full w-full select-none object-contain ${
+                        viewerTransforms[image.key].scale > 1
+                          ? 'cursor-grab active:cursor-grabbing'
+                          : 'cursor-zoom-in'
+                      }`}
+                      style={{
+                        transform: `translate(${viewerTransforms[image.key].offsetX}px, ${viewerTransforms[image.key].offsetY}px) scale(${viewerTransforms[image.key].scale})`,
+                        transformOrigin: 'center center',
+                        transition:
+                          dragState?.key === image.key ? 'none' : 'transform 120ms ease-out',
+                      }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-3 flex h-80 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white text-sm text-slate-500">
+                  이미지 없음
+                </div>
+              )}
+            </article>
+          ))}
+        </div>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
